@@ -2,6 +2,7 @@
 Golang implementation of the NOAA World Magnetic Model
 
 The World Magnetic Model home is at https://www.ngdc.noaa.gov/geomag/WMM/DoDWMM.shtml.
+The coefficients for 2015-2020 can be downloaded at https://www.ngdc.noaa.gov/geomag/WMM/data/WMM2015/WMM2015v2COF.zip
 
 ## TODO
 1. Write function to calculate Legendre Polynomials and validate.
