@@ -105,4 +105,27 @@ func TestDerivative(t *testing.T) {
 	}
 }
 
+func TestLegendrePolynomials(t *testing.T) {
+	cs := [][]float64{
+		{1},
+		{0, 1},
+		{-1.0/2, 0, 3.0/2},
+		{0, -3.0/2, 0, 5.0/2},
+		{3.0/8, 0, -30.0/8, 0, 35.0/8},
+		{0, 15.0/8, 0, -70.0/8, 0, 63.0/8},
+		{-5.0/16, 0, 105.0/16, 0, -315.0/16, 0, 231.0/16},
+		{0, -35.0/16, 0, 315.0/16, 0, -693.0/16, 0, 429.0/16},
+		{35.0/128, 0, -1260.0/128, 0, 6930.0/128, 0, -12012.0/128, 0, 6435.0/128},
+	}
 
+	for n, cExpected := range cs {
+		cCalculated := polynomial.LegendrePolynomial(n).Coefficients()
+		for j:=0; j<=n; j++ {
+			dc := cCalculated[j]-cExpected[j]
+			if dc < -EPS || dc > EPS {
+				t.Errorf("%d-order Legendre Polynomial incorrect, expecting %v, got %v",
+					n, cExpected, cCalculated)
+			}
+		}
+	}
+}
