@@ -57,12 +57,12 @@ func LegendrePolynomial(n int) (p Polynomial) {
 }
 
 // Factorial calculates the factorial of the input integer.
+// Doesn't handle negative numbers gracefully, up to user to not pass them.
 func Factorial(n int) (z int) {
-	z = 1
-	for k:=2; k<=n; k++ {
-		z *= k
+	if n>1 {
+		return n*Factorial(n-1)
 	}
-	return z
+	return 1
 }
 
 // Pow raises a float64 to the integer power n.
