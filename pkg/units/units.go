@@ -1,4 +1,4 @@
-package egm96
+package units
 
 type Meters float64
 
