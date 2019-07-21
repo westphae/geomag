@@ -69,18 +69,13 @@ func Factorial(n int) (z int) {
 // Works for any n, positive, negative or 0.
 // Warning: Very inefficient for large n.
 func Pow(x float64, n int) (y float64) {
-	invert := n<0
-	if invert {
-		n = -n
+	if n>0 {
+		return x*Pow(x,n-1)
 	}
 
-	y = 1
-	for i:=0; i<n; i++ {
-		y *= x
+	if n==0 {
+		return 1
 	}
 
-	if invert {
-		return 1/y
-	}
-	return y
+	return 1/Pow(x,-n)
 }
