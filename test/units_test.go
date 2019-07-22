@@ -1,8 +1,9 @@
 package main
 
 import (
-	"github.com/westphae/geomag/pkg/units"
 	"testing"
+
+	"github.com/westphae/geomag/pkg/units"
 )
 
 func TestMeters(t *testing.T) {
