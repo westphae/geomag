@@ -31,13 +31,13 @@ func TestEGM96GridLookup(t *testing.T) {
 	}
 }
 
-func TestEGM96GridInterpolation(t *testing.T) {
+func TestEGM96GridInterpolationAgainstKnown(t *testing.T) {
 	lats := []units.Degrees{38, -12.25, 0, 38.628155, -14.621217, 46.874319, -23.617446, 38.625473, -0.466744}
 	lngs := []units.Degrees{270, 82.75, 0, 269.779155, 305.021114, 102.448729, 133.874712, 359.999500, 0.002300}
 	hts  := []units.Meters{-30.262, -67.347, 17.162, -31.628, -2.969, -43.575, 15.871, 50.066, 17.329}
 
 	for i:=0; i<len(lats); i++ {
-		_, h := egm96.CalculateHeightCorrection(units.Location{
+		_, h := egm96.ConvertMSLToHeightAboveWGS84(units.Location{
 			Latitude: lats[i],
 			Longitude: lngs[i],
 			Height: 0,
@@ -49,5 +49,3 @@ func TestEGM96GridInterpolation(t *testing.T) {
 		}
 	}
 }
-
-

@@ -21,6 +21,7 @@ var (
 
 // GetEGM96GridPoint looks up the grid point nearest the desired location
 // within the grid data for the EGM96 geoid grid model.
+// Ignores any Height value in the passed Location.
 func GetEGM96GridPoint(loc units.Location) (err error, nloc units.Location) {
 	if len(egm96Grid)==0 {
 		loadEGM96Grid()
@@ -47,7 +48,7 @@ func GetEGM96GridPoint(loc units.Location) (err error, nloc units.Location) {
 	}
 }
 
-func CalculateHeightCorrection(loc units.Location) (err error, h units.Meters) {
+func ConvertMSLToHeightAboveWGS84(loc units.Location) (err error, h units.Meters) {
 	if len(egm96Grid)==0 {
 		loadEGM96Grid()
 	}
@@ -73,7 +74,7 @@ func CalculateHeightCorrection(loc units.Location) (err error, h units.Meters) {
 	h01 := egm96Grid[(nLat+1)*egm96XN+nLng]
 	h11 := egm96Grid[(nLat+1)*egm96XN+nLng+1]
 
-	h = units.Meters((1-x)*(1-y)*h00 + x*(1-y)*h10 + (1-x)*y*h01 + x*y*h11)
+	h = units.Meters((1-x)*(1-y)*h00 + x*(1-y)*h10 + (1-x)*y*h01 + x*y*h11) + loc.Height
 
 	return err, h
 }
