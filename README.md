@@ -7,8 +7,8 @@ The coefficients for 2015-2020 can be downloaded at https://www.ngdc.noaa.gov/ge
 ## TODO
 1. Write function to calculate Legendre Polynomials and validate. DONE
 2. Write function to calculate Associated Legendre Functions and validate. DONE
-3. Write function to calculate height above WGS84 ellipsoid from MSL height.
-4. Write function to calculate spherical geocentric coordinates from geodetic coordinates.
+3. Write function to calculate height above WGS84 ellipsoid from MSL height. DONE
+4. Write function to calculate spherical geocentric coordinates from geodetic coordinates. DONE
 5. Write function to read in COF file
 6. Write function to calculate Gauss coefficients at time t from model coefficients.
 7. Write function to calculate the magnetic field components X,Y,Z.
