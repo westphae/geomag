@@ -14,18 +14,18 @@ const (
 )
 
 var (
-	wmmEpoch     time.Time
-	wmmCofName   string
-	wmmValidDate time.Time
-	wmmGnm       [][]float64
-	wmmHnm       [][]float64
-	wmmdGnm      [][]float64
-	wmmdHnm      [][]float64
+	Epoch     DecimalYear
+	CofName   string
+	ValidDate time.Time
+	Gnm       [][]float64
+	Hnm       [][]float64
+	DGnm      [][]float64
+	DHnm      [][]float64
 )
 
 func GetWMMCoefficients(n, m int, t time.Time) (gnm, hnm, dgnm, dhnm float64, err error) {
-	if wmmEpoch.IsZero() {
-		loadWMMCOF()
+	if Epoch ==0 {
+		LoadWMMCOF()
 	}
 	if n<0 || n>MaxLegendreOrder || m<0 || m>MaxLegendreOrder {
 		return 0, 0, 0, 0, fmt.Errorf("n, m = (%d,%d) must be between 0 and %d",
@@ -34,20 +34,19 @@ func GetWMMCoefficients(n, m int, t time.Time) (gnm, hnm, dgnm, dhnm float64, er
 	if m>n {
 		return 0, 0, 0, 0, fmt.Errorf("m=%d must be less than n=%d", m, n)
 	}
-	if t.Sub(wmmValidDate) < 0 || t.Sub(wmmValidDate) > 5*SecondsPerYear*time.Second {
-		return 0, 0, 0, 0,
-			fmt.Errorf("requested date %v is outside of validity period beginning %v of WMM.COF file",
-				t, wmmValidDate)
+	if t.Sub(ValidDate) < 0 || t.Sub(ValidDate) > 5*SecondsPerYear*time.Second {
+		err = fmt.Errorf("requested date %v is outside of validity period beginning %v of WMM.COF file",
+				t, ValidDate)
 	}
-	dt := DecimalYearsSinceEpoch(t, wmmEpoch)
-	gnm = wmmGnm[n][m] + dt*wmmdGnm[n][m]
-	hnm = wmmHnm[n][m] + dt*wmmdHnm[n][m]
-	dgnm = wmmdGnm[n][m]
-	dhnm = wmmdHnm[n][m]
-	return gnm, hnm, dgnm, dhnm, nil
+	dt := float64(TimeToDecimalYears(t)- Epoch)
+	gnm = Gnm[n][m] + dt*DGnm[n][m]
+	hnm = Hnm[n][m] + dt*DHnm[n][m]
+	dgnm = DGnm[n][m]
+	dhnm = DHnm[n][m]
+	return gnm, hnm, dgnm, dhnm, err
 }
 
-func loadWMMCOF() {
+func LoadWMMCOF() {
 	data, err := Asset("WMM.COF")
 	if err != nil {
 		panic(err)
@@ -67,20 +66,20 @@ func loadWMMCOF() {
 	if epoch, err = strconv.ParseFloat(dat[0], 64); err != nil {
 		panic("bad WMM.COF header epoch date")
 	}
-	wmmEpoch = DecimalYearsToTime(epoch)
-	wmmCofName = dat[1]
-	if wmmValidDate, err = time.Parse("01/02/2006", dat[2]); err != nil {
+	Epoch = DecimalYear(epoch)
+	CofName = dat[1]
+	if ValidDate, err = time.Parse("01/02/2006", dat[2]); err != nil {
 		panic("bad WMM.COF header valid date")
 	}
 
-	wmmGnm = make([][]float64, MaxLegendreOrder+1)
-	wmmGnm[0] = []float64{0}
-	wmmHnm = make([][]float64, MaxLegendreOrder+1)
-	wmmHnm[0] = []float64{0}
-	wmmdGnm = make([][]float64, MaxLegendreOrder+1)
-	wmmdGnm[0] = []float64{0}
-	wmmdHnm = make([][]float64, MaxLegendreOrder+1)
-	wmmdHnm[0] = []float64{0}
+	Gnm = make([][]float64, MaxLegendreOrder+1)
+	Gnm[0] = []float64{0}
+	Hnm = make([][]float64, MaxLegendreOrder+1)
+	Hnm[0] = []float64{0}
+	DGnm = make([][]float64, MaxLegendreOrder+1)
+	DGnm[0] = []float64{0}
+	DHnm = make([][]float64, MaxLegendreOrder+1)
+	DHnm[0] = []float64{0}
 
 	// Read and parse data
 	curN := 0
@@ -96,23 +95,23 @@ func loadWMMCOF() {
 			panic("bad m value in WMM.COF data file")
 		}
 		if n>curN {
-			wmmGnm[n] = make([]float64, n+1)
-			wmmHnm[n] = make([]float64, n+1)
-			wmmdGnm[n] = make([]float64, n+1)
-			wmmdHnm[n] = make([]float64, n+1)
+			Gnm[n] = make([]float64, n+1)
+			Hnm[n] = make([]float64, n+1)
+			DGnm[n] = make([]float64, n+1)
+			DHnm[n] = make([]float64, n+1)
 			curN = n
 		}
-		if wmmGnm[n][m], err = strconv.ParseFloat(s[2], 64); err != nil {
+		if Gnm[n][m], err = strconv.ParseFloat(s[2], 64); err != nil {
 			panic("bad Gnm value in WMM.COF data file")
 		}
-		if wmmHnm[n][m], err = strconv.ParseFloat(s[3], 64); err != nil {
+		if Hnm[n][m], err = strconv.ParseFloat(s[3], 64); err != nil {
 			panic("bad Hnm value in WMM.COF data file")
 		}
-		if wmmdGnm[n][m], err = strconv.ParseFloat(s[4], 64); err != nil {
-			panic("bad dGnm value in WMM.COF data file")
+		if DGnm[n][m], err = strconv.ParseFloat(s[4], 64); err != nil {
+			panic("bad DGnm value in WMM.COF data file")
 		}
-		if wmmdHnm[n][m], err = strconv.ParseFloat(s[5], 64); err != nil {
-			panic("bad dHnm value in WMM.COF data file")
+		if DHnm[n][m], err = strconv.ParseFloat(s[5], 64); err != nil {
+			panic("bad DHnm value in WMM.COF data file")
 		}
 	}
 
