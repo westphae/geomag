@@ -16,6 +16,8 @@ const (
 	SecondsPerYear = SecondsPerDay*DaysPerYear
 )
 
+type DecimalYear float64
+
 type Geodetic units.Location
 
 type Spherical units.Location
@@ -35,15 +37,31 @@ func (l Geodetic) ToSpherical() (s Spherical) {
 	}
 }
 
-// DecimalYearsToTime converts an epoch-like float64 year like 2015.0
-// to a Go time.Time.  It is accurate only to the nearest day.
-func DecimalYearsToTime(y float64) (t time.Time) {
-	tY := int(y)
-	tD := int((y-float64(tY))*365.2425+0.5)
-	return time.Date(tY, 1, tD, 0, 0, 0, 0, time.UTC)
+// DecimalYearsToTime converts an epoch-like float64 year like 2015.0 to a Go time.Time.
+// Per document MIL-PRF-89500B Section 3.2, "Time is referenced in decimal years
+// (e.g., 15 May 2019 is 2019.367). Note that the day-of-year (DOY) of January 1st is zero
+// and December 31st is 364 for non-leap year. For a leap year, DOY of December 31st is 365."
+func (y DecimalYear) ToTime() (t time.Time) {
+	tYear := int(y)
+	yearDays := float64(time.Date(tYear, 12, 31, 0, 0, 0, 0, time.UTC).YearDay())
+	tDays := int((float64(y)-float64(tYear))*yearDays+0.5)
+	return time.Date(tYear, 1, tDays+1, 0, 0, 0, 0, time.UTC)
 }
 
-func DecimalYearsSinceEpoch(t time.Time, epoch time.Time) (y float64) {
-	y = t.Sub(epoch).Seconds()
-	return y/SecondsPerYear
+// TimeToDecimalYears converts a Go time.Time to an epoch-like float64 year like 2015.0.
+// Per document MIL-PRF-89500B Section 3.2, "Time is referenced in decimal years
+// (e.g., 15 May 2019 is 2019.367). Note that the day-of-year (DOY) of January 1st is zero
+// and December 31st is 364 for non-leap year. For a leap year, DOY of December 31st is 365."
+func TimeToDecimalYears(t time.Time) (y DecimalYear) {
+	tYear := t.Year()
+	tDay := float64(t.YearDay()-1)
+	yearDays := float64(time.Date(tYear, 12, 31, 0, 0, 0, 0, time.UTC).YearDay())
+	return DecimalYear(tYear) + DecimalYear(tDay/yearDays)
+}
+
+// DecimalYearsSinceEpoch converts a Go time.Time (like time.Now()) to a decimal number
+// of years since the epoch, per MIL-PRF-89500B Section 3.2.
+func DecimalYearsSinceEpoch(t time.Time, epoch time.Time) (y DecimalYear) {
+	y = DecimalYear(t.Sub(epoch).Seconds()/SecondsPerYear)
+	return y
 }
