@@ -4,8 +4,6 @@ type Meters float64
 
 type Degrees float64
 
-const Deg = 57.29577951308232
-
 type Location struct {
 	Latitude Degrees
 	Longitude Degrees

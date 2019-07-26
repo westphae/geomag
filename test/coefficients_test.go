@@ -8,6 +8,9 @@ import (
 )
 
 func TestGetWMMCoefficients(t *testing.T) {
+	if wmm.CofName != "WMM-2015v2" {
+		return
+	}
 	nms := [][]int{{1, 0}, {2, 2}, {5, 1}, {5, 4}, {12, 0}, {12, 6}, {12, 11}}
 	gs := []float64{-29438.2, 1679.0, 360.1, -157.2, -2.0, 0.1, -0.9}
 	hs := []float64{0.0, -638.8, 46.9, 16.0, 0.0, 0.7, -0.2}

@@ -14,6 +14,7 @@ const (
 	DaysPerYear = 365.2425
 	SecondsPerDay = 86400
 	SecondsPerYear = SecondsPerDay*DaysPerYear
+	Deg = 1/57.29577951308232
 )
 
 type DecimalYear float64
@@ -23,15 +24,15 @@ type Geodetic units.Location
 type Spherical units.Location
 
 func (l Geodetic) ToSpherical() (s Spherical) {
-	sinPhi := math.Sin(float64(l.Latitude))
-	cosPhi := math.Cos(float64(l.Latitude))
+	sinPhi := math.Sin(float64(l.Latitude)*Deg)
+	cosPhi := math.Cos(float64(l.Latitude)*Deg)
 	h := float64(l.Height)
 	rc := float64(A)/math.Sqrt(1-E2*sinPhi*sinPhi)
 	p := (rc+h)*cosPhi
 	z := (rc*(1-E2)+h)*sinPhi
 	r := math.Sqrt(p*p+z*z)
 	return Spherical{
-		Latitude: units.Degrees(math.Asin(z/r)),
+		Latitude: units.Degrees(math.Asin(z/r)/Deg),
 		Longitude: l.Longitude,
 		Height: units.Meters(r),
 	}
