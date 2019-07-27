@@ -17,8 +17,8 @@ The coefficients for 2015-2020 can be downloaded at https://www.ngdc.noaa.gov/ge
 10. Calculate projected components H,F,I,D and their derivatives. DONE
 11. Allow WMM coefficients file to be used instead of bindata, use for tests. DONE
 11. Write test module to test against WMM test values. DONE
-12. Handle grivation near poles.
-13. Complete documentation
+12. Handle grivation near poles. DONE
+13. Complete documentation.
 
 ## Notes
 * Legendre function coefficients should be calculated once when first called and then cached.

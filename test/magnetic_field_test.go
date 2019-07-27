@@ -91,7 +91,7 @@ func TestAllTestValuesFromPaper(t *testing.T) {
 		lat, lon units.Degrees
 		x, y, z float64
 		h, f, i, d float64
-		//gv float64
+		gv float64
 		xdot, ydot, zdot float64
 		hdot, fdot, idot, ddot float64
 		data []byte
@@ -159,10 +159,10 @@ func TestAllTestValuesFromPaper(t *testing.T) {
 			panic(err)
 		}
 		testDiff("D", wmm.MagneticField(mag).D(), d, 0.01, t)
-		//if gv, err = strconv.ParseFloat(dat[11], 64); err != nil {
-		//	panic(err)
-		//}
-		//testDiff("GV", wmm.MagneticField(mag).GV(), gv, 0.01, t)
+		if gv, err = strconv.ParseFloat(dat[11], 64); err != nil {
+			panic(err)
+		}
+		testDiff("GV", wmm.MagneticField(mag).GV(loc), gv, 0.01, t)
 		if xdot, err = strconv.ParseFloat(dat[12], 64); err != nil {
 			panic(err)
 		}

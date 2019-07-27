@@ -67,6 +67,17 @@ func (m MagneticField) D() (f float64) {
 	return math.Atan2(m.Y, m.X)/Deg
 }
 
+func (m MagneticField) GV(loc Geodetic) (f float64) {
+	f = m.D()
+	if loc.Latitude > 55 {
+		f -= float64(loc.Longitude)
+	}
+	if loc.Latitude < -55 {
+		f += float64(loc.Longitude)
+	}
+	return f
+}
+
 func (m MagneticField) DH() (h float64) {
 	return (m.X*m.DX + m.Y*m.DY)/m.H()
 }
