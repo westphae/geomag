@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"io/ioutil"
 	"strconv"
 	"strings"
 	"time"
@@ -15,7 +16,7 @@ const (
 
 var (
 	Epoch     DecimalYear
-	CofName   string
+	COFName   string
 	ValidDate time.Time
 	Gnm       [][]float64
 	Hnm       [][]float64
@@ -24,8 +25,8 @@ var (
 )
 
 func GetWMMCoefficients(n, m int, t time.Time) (gnm, hnm, dgnm, dhnm float64, err error) {
-	if Epoch ==0 {
-		LoadWMMCOF()
+	if Epoch==0 {
+		LoadWMMCOF("")
 	}
 	if n<0 || n>MaxLegendreOrder || m<0 || m>MaxLegendreOrder {
 		return 0, 0, 0, 0, fmt.Errorf("n, m = (%d,%d) must be between 0 and %d",
@@ -46,16 +47,22 @@ func GetWMMCoefficients(n, m int, t time.Time) (gnm, hnm, dgnm, dhnm float64, er
 	return gnm, hnm, dgnm, dhnm, err
 }
 
-func LoadWMMCOF() {
-	data, err := Asset("WMM.COF")
-	if err != nil {
-		panic(err)
-	}
-
+func LoadWMMCOF(fn string) {
 	var (
+		data []byte
+		err   error
 		epoch float64
 		n, m  int
 	)
+
+	if fn=="" {
+		data, err = Asset("WMM.COF")
+	} else {
+		data, err = ioutil.ReadFile(fn)
+	}
+	if err != nil {
+		panic(err)
+	}
 
 	scanner := bufio.NewScanner(bytes.NewReader(data))
 	// Read and parse header
@@ -67,7 +74,7 @@ func LoadWMMCOF() {
 		panic("bad WMM.COF header epoch date")
 	}
 	Epoch = DecimalYear(epoch)
-	CofName = dat[1]
+	COFName = dat[1]
 	if ValidDate, err = time.Parse("01/02/2006", dat[2]); err != nil {
 		panic("bad WMM.COF header valid date")
 	}

@@ -11,10 +11,11 @@ The coefficients for 2015-2020 can be downloaded at https://www.ngdc.noaa.gov/ge
 4. Write function to calculate spherical geocentric coordinates from geodetic coordinates. DONE
 5. Write function to read in COF file. DONE
 6. Write function to calculate Gauss coefficients at time t from model coefficients. DONE
-7. Write function to calculate the magnetic field components X,Y,Z.
-8. Write function to calculate the derivatives of X,Y,Z.
-9. Write function to rotate geocentric values X,Y,Z into ellipsoidal reference frame.
-10. Calculate projected components H,F,I,D and their derivatives.
+7. Write function to calculate the magnetic field components X,Y,Z. DONE
+8. Write function to calculate the derivatives of X,Y,Z. DONE
+9. Write function to rotate geocentric values X,Y,Z into ellipsoidal reference frame. DONE
+10. Calculate projected components H,F,I,D and their derivatives. DONE
+11. Allow WMM coefficients file to be used instead of bindata, use for tests. DONE
 11. Write test module to test against WMM test values.
 12. Handle grivation near poles.
 

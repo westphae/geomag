@@ -14,9 +14,7 @@ func testDiff(name string, actual, expected float64, eps float64, t *testing.T) 
 
 func TestMagneticFieldFromPaperDetail(t *testing.T) {
 	// Test values in paper are only for original version of WMM-2015
-	if wmm.CofName != "WMM-2015" {
-		return
-	}
+	wmm.LoadWMMCOF("data/WMM2015v1.COF")
 	tt := wmm.DecimalYear(2017.5)
 	loc := wmm.Geodetic{
 		Latitude: units.Degrees(-80),
