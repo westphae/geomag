@@ -22,23 +22,23 @@ func CalculateWMMMagneticField(loc Spherical, t time.Time) (field GeocentricMagn
 	sinPhi := math.Sin(phi)
 	cosPhi := math.Cos(phi)
 	for n:=1; n<=MaxLegendreOrder; n++ {
+		nn := float64(n+1)
 		f := polynomial.Pow(float64(A/loc.Height), n+2)
 		for m:=0; m<=n; m++ {
 			mf := float64(m)
-			sinMLambda := math.Sin(mf*lambda)
-			cosMLambda := math.Cos(mf*lambda)
 			p := polynomial.LegendreFunction(n, m, sinPhi)
 			q := polynomial.LegendreFunction(n+1, m, sinPhi)
 			if m>0 {
 				p *= math.Sqrt(2*float64(polynomial.Factorial(n-m))/float64(polynomial.Factorial(n+m)))
 				q *= math.Sqrt(2*float64(polynomial.Factorial(n-m))/float64(polynomial.Factorial(n+m)))
 			}
-			g, h, dg, dh, err := GetWMMCoefficients(n, m, t)
+			dp := nn*math.Tan(phi)*p - math.Sqrt(nn*nn-mf*mf)/cosPhi*q
+			g, h, dg, dh, err := GetWMMCoefficients(n, m, Epoch.ToTime())
 			if err != nil {
 				panic(err)
 			}
-			nn := float64(n+1)
-			dp := nn*math.Tan(phi)*p - math.Sqrt(nn*nn-mf*mf)/cosPhi*q
+			sinMLambda := math.Sin(mf*lambda)
+			cosMLambda := math.Cos(mf*lambda)
 			field.X += -f*(g*cosMLambda+h*sinMLambda)*dp
 			field.Y += f/cosPhi*mf*(g*sinMLambda-h*cosMLambda)*p
 			field.Z += -nn*f*(g*cosMLambda+h*sinMLambda)*p
@@ -47,6 +47,10 @@ func CalculateWMMMagneticField(loc Spherical, t time.Time) (field GeocentricMagn
 			field.DZ += -nn*f*(dg*cosMLambda+dh*sinMLambda)*p
 		}
 	}
+	dt := float64(TimeToDecimalYears(t)- Epoch)
+	field.X += dt*field.DX
+	field.Y += dt*field.DY
+	field.Z += dt*field.DZ
 	return field
 }
 

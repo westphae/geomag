@@ -19,6 +19,7 @@ The coefficients for 2015-2020 can be downloaded at https://www.ngdc.noaa.gov/ge
 11. Write test module to test against WMM test values. DONE
 12. Handle grivation near poles. DONE
 13. Complete documentation.
+14. Write a command line utility to calculate values for a given location/time.
 
 ## Notes
 * Legendre function coefficients should be calculated once when first called and then cached.
