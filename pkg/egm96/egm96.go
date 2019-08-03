@@ -10,8 +10,6 @@ import (
 	"github.com/westphae/geomag/pkg/units"
 )
 
-const EPS = 1e-6
-
 var (
 	egm96X0, egm96X1, egm96DX float64
 	egm96Y0, egm96Y1, egm96DY float64
@@ -20,7 +18,7 @@ var (
 )
 
 // GetEGM96GridPoint looks up the grid point nearest the desired location
-// within the grid data for the EGM96 geoid grid model.
+// within the grid test_data for the EGM96 geoid grid model.
 // Ignores any Height value in the passed Location.
 func GetEGM96GridPoint(loc units.Location) (err error, nloc units.Location) {
 	if len(egm96Grid)==0 {
@@ -74,6 +72,7 @@ func ConvertMSLToHeightAboveWGS84(loc units.Location) (err error, h units.Meters
 	h01 := egm96Grid[(nLat+1)*egm96XN+nLng]
 	h11 := egm96Grid[(nLat+1)*egm96XN+nLng+1]
 
+	//TODO: implement spline interpolation to improve on bilinear
 	h = units.Meters((1-x)*(1-y)*h00 + x*(1-y)*h10 + (1-x)*y*h01 + x*y*h11) + loc.Height
 
 	return err, h
@@ -126,7 +125,7 @@ func loadEGM96Grid() {
 	egm96YN = int((egm96Y1-egm96Y0)/egm96DY+0.5)+1
 	egm96Grid = make([]float64, egm96XN*egm96YN)
 
-	// Read and parse data
+	// Read and parse test_data
 	i = 0
 	for scanner.Scan() {
 		for _, s := range strings.Fields(scanner.Text()) {

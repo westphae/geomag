@@ -1,11 +1,20 @@
-package main
+package egm96
 
 import (
 	"testing"
 
-	"github.com/westphae/geomag/pkg/egm96"
 	"github.com/westphae/geomag/pkg/units"
 )
+
+const eps = 1e-6
+
+func testDiff(name string, actual, expected float64, eps float64, t *testing.T) {
+	if actual - expected > -eps && actual - expected < eps {
+		t.Logf("%s correct: expected %8.4f, got %8.4f", name, expected, actual)
+		return
+	}
+	t.Errorf("%s incorrect: expected %8.4f, got %8.4f", name, expected, actual)
+}
 
 func TestEGM96GridLookup(t *testing.T) {
 	lats := []units.Degrees{38, -12.25, -84.75, 26, 0}
@@ -13,21 +22,15 @@ func TestEGM96GridLookup(t *testing.T) {
 	hts  := []units.Meters{-30.262, -67.347, -40.254, -26.621, 17.162}
 
 	for i:=0; i<len(lats); i++ {
-		_, p := egm96.GetEGM96GridPoint(units.Location{
+		_, p := GetEGM96GridPoint(units.Location{
 			Latitude: lats[i],
 			Longitude: lngs[i],
 			Height: 0,
 		})
 
-		if dLat := p.Latitude - lats[i]; dLat < -EPS || dLat > EPS {
-			t.Errorf("EGM96 Geoid height lookup changed the latitude from %6.4f to %6.4f", lats[i], p.Latitude)
-		}
-		if dLng := p.Longitude - lngs[i]; dLng < -EPS || dLng > EPS {
-			t.Errorf("EGM96 Geoid height lookup changed the longitude from %6.4f to %6.4f", lngs[i], p.Longitude)
-		}
-		if dh := p.Height - hts[i]; dh < -EPS || dh > EPS {
-			t.Errorf("EGM96 Geoid height incorrect, expected %6.4f, calculated %6.4f", hts[i], p.Height)
-		}
+		testDiff("latitude", float64(p.Latitude), float64(lats[i]), eps, t)
+		testDiff("longitude", float64(p.Longitude), float64(lngs[i]), eps, t)
+		testDiff("height", float64(p.Height), float64(hts[i]), eps, t)
 	}
 }
 
@@ -37,15 +40,12 @@ func TestEGM96GridInterpolationAgainstKnown(t *testing.T) {
 	hts  := []units.Meters{-30.262, -67.347, 17.162, -31.628, -2.969, -43.575, 15.871, 50.066, 17.329}
 
 	for i:=0; i<len(lats); i++ {
-		_, h := egm96.ConvertMSLToHeightAboveWGS84(units.Location{
+		_, h := ConvertMSLToHeightAboveWGS84(units.Location{
 			Latitude: lats[i],
 			Longitude: lngs[i],
 			Height: 0,
 		})
-		dh := h - hts[i]
 		// 0.1 seems to be the error introduced by bi-linear interpolation rather than splines
-		if dh < -0.1 || dh > 0.1 {
-			t.Errorf("EGM96 Geoid height incorrect, expected %6.4f, calculated %6.4f", hts[i], h)
-		}
+		testDiff("height", float64(h), float64(hts[i]), 0.1, t)
 	}
 }

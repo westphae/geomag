@@ -88,7 +88,7 @@ func LoadWMMCOF(fn string) {
 	DHnm = make([][]float64, MaxLegendreOrder+1)
 	DHnm[0] = []float64{0}
 
-	// Read and parse data
+	// Read and parse test_data
 	curN := 0
 	for scanner.Scan() {
 		s := strings.Fields(scanner.Text())

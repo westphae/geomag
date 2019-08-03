@@ -1,12 +1,19 @@
-package main
+package polynomial
 
 import (
+	"fmt"
 	"testing"
-
-	"github.com/westphae/geomag/pkg/polynomial"
 )
 
-const EPS = 1e-6
+const eps = 1e-6
+
+func testDiff(name string, actual, expected float64, eps float64, t *testing.T) {
+	if actual - expected > -eps && actual - expected < eps {
+		t.Logf("%s correct: expected %8.4f, got %8.4f", name, expected, actual)
+		return
+	}
+	t.Errorf("%s incorrect: expected %8.4f, got %8.4f", name, expected, actual)
+}
 
 func TestPow(t *testing.T) {
 	var (
@@ -16,26 +23,20 @@ func TestPow(t *testing.T) {
 	)
 
 	for i:=0; i<len(xs); i++ {
-		y := polynomial.Pow(xs[i], ns[i])
-		dy := y - ys[i]
-		if dy < -EPS || dy > EPS {
-			t.Errorf("Pow expected %4.1f, calculated %4.1f", ys[i], y)
-		}
+		y := Pow(xs[i], ns[i])
+		testDiff("Pow", y, ys[i], eps, t)
 	}
 }
 
 func TestFactorial(t *testing.T) {
 	var (
-		ns = []int{5, 3, 4, 0, 1}
-		zs = []int{120, 6, 24, 1, 1}
+		ns = []int{20, 19, 5, 3, 4, 0, 1}
+		zs = []int{2432902008176640000, 121645100408832000, 120, 6, 24, 1, 1}
 	)
 
 	for i:=0; i<len(ns); i++ {
-		z := polynomial.Factorial(ns[i])
-		dz := z - zs[i]
-		if dz != 0 {
-			t.Errorf("Factorial expected %d, calculated %d", zs[i], z)
-		}
+		z := Factorial(ns[i])
+		testDiff(fmt.Sprintf("%d!", ns[i]), float64(z), float64(zs[i]), eps, t)
 	}
 }
 
@@ -55,13 +56,9 @@ func TestEvaluate(t *testing.T) {
 
 	for i:=0; i<len(cs); i++ {
 		for j:=0; j<len(xs); j++ {
-			p := polynomial.NewPolynomial(cs[i])
+			p := NewPolynomial(cs[i])
 			y := p.Evaluate(xs[j])
-			dy := y - ys[j][i]
-			if dy < -EPS || dy > EPS {
-				t.Errorf("Evaluate for %v(%3.1f) expected %4.1f, calculated %4.1f",
-					cs[i], xs[j], ys[j][i], y)
-			}
+			testDiff(fmt.Sprintf("Evaluate %v(%3.1f)", cs[i], xs[j]), y, ys[j][i], eps, t)
 		}
 	}
 }
@@ -83,24 +80,16 @@ func TestDerivative(t *testing.T) {
 	)
 
 	for i:=0; i<len(cs); i++ {
-		p := polynomial.NewPolynomial(cs[i])
+		p := NewPolynomial(cs[i])
 
 		y := p.Derivative(1).Coefficients()
 		for j, d := range ds[i] {
-			dy := y[j]-d
-			if dy < -EPS || dy > EPS {
-				t.Errorf("Derivative of %v was wrong, expecting %v, got %v",
-					cs[i], ds[i], y)
-			}
+			testDiff(fmt.Sprintf("Derivative of %v", cs[i]), y[j], d, eps, t)
 		}
 
 		y = p.Derivative(2).Coefficients()
 		for j, d := range dds[i] {
-			dy := y[j]-d
-			if dy < -EPS || dy > EPS {
-				t.Errorf("Second derivative of %v was wrong, expecting %v, got %v",
-					cs[i], dds[i], y)
-			}
+			testDiff(fmt.Sprintf("Second derivative of %v", cs[i]), y[j], d, eps, t)
 		}
 	}
 }
@@ -119,13 +108,9 @@ func TestLegendrePolynomials(t *testing.T) {
 	}
 
 	for n, cExpected := range cs {
-		cCalculated := polynomial.LegendrePolynomial(n).Coefficients()
+		cCalculated := LegendrePolynomial(n).Coefficients()
 		for j:=0; j<=n; j++ {
-			dc := cCalculated[j]-cExpected[j]
-			if dc < -EPS || dc > EPS {
-				t.Errorf("%d-order Legendre Polynomial incorrect, expecting %v, got %v",
-					n, cExpected, cCalculated)
-			}
+			testDiff(fmt.Sprintf("Order-%d Legendre Polynomial", n), cCalculated[j], cExpected[j], eps, t)
 		}
 	}
 }
@@ -137,11 +122,7 @@ func TestLegendreFunctions(t *testing.T) {
 	vs := []float64{0.715, 1.994196267, -6.176578125, 10.68285409, -5.414123408, 61.85527031, -126.2222359}
 
 	for i, vExpected := range vs {
-		vCalculated := polynomial.LegendreFunction(ns[i], ms[i], xs[i])
-		dv := vCalculated - vExpected
-		if dv < -EPS || dv > EPS {
-			t.Errorf("Legendre Function P[%d,%d] incorrect, expecting %4.1f, got %4.1f",
-				ns[i], ms[i], vExpected, vCalculated)
-		}
+		vCalculated := LegendreFunction(ns[i], ms[i], xs[i])
+		testDiff(fmt.Sprintf("Legendre function P(%d,%d)", ns[i], ms[i]), vCalculated, vExpected, eps, t)
 	}
 }
