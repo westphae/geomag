@@ -18,7 +18,7 @@ var (
 )
 
 // GetEGM96GridPoint looks up the grid point nearest the desired location
-// within the grid test_data for the EGM96 geoid grid model.
+// within the grid data for the EGM96 geoid grid model.
 // Ignores any Height value in the passed Location.
 func GetEGM96GridPoint(loc units.Location) (err error, nloc units.Location) {
 	if len(egm96Grid)==0 {
@@ -125,7 +125,7 @@ func loadEGM96Grid() {
 	egm96YN = int((egm96Y1-egm96Y0)/egm96DY+0.5)+1
 	egm96Grid = make([]float64, egm96XN*egm96YN)
 
-	// Read and parse test_data
+	// Read and parse data
 	i = 0
 	for scanner.Scan() {
 		for _, s := range strings.Fields(scanner.Text()) {
