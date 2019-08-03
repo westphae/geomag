@@ -35,7 +35,7 @@ func GetWMMCoefficients(n, m int, t time.Time) (gnm, hnm, dgnm, dhnm float64, er
 	if m>n {
 		return 0, 0, 0, 0, fmt.Errorf("m=%d must be less than n=%d", m, n)
 	}
-	if t.Sub(ValidDate) < 0 || t.Sub(ValidDate) > 5*SecondsPerYear*time.Second {
+	if t.Sub(ValidDate) < 0 || TimeToDecimalYears(t)>Epoch+5 {
 		err = fmt.Errorf("requested date %v is outside of validity period beginning %v of WMM.COF file",
 				t, ValidDate)
 	}
