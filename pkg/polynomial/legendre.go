@@ -21,6 +21,7 @@ func LegendrePolynomial(n int) (p Polynomial) {
 }
 
 // LegendreFunction evaluates the Associated Legendre Function at the given value.
+// Normalization is that given in WMM2015_Report.pdf equation 6.
 func LegendreFunction(n, m int, x float64) (v float64) {
 	p, ok := legendreFunctionCache[legendreFunctionIndex{n,m}]
 	if !ok {
