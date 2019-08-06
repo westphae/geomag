@@ -1,7 +1,6 @@
 package wmm
 
 import (
-	"log"
 	"math"
 	"time"
 
@@ -75,7 +74,7 @@ var (
 	curField GeocentricMagneticField
 )
 
-func CalculateWMMMagneticField(loc Spherical, t time.Time) (field GeocentricMagneticField) {
+func CalculateWMMMagneticField(loc Spherical, t time.Time) (field GeocentricMagneticField, err error) {
 	if loc.Longitude!=curLoc.Longitude || loc.Latitude!=curLoc.Latitude || loc.Height!=curLoc.Height {
 		curLoc = loc
 		curField = *new(GeocentricMagneticField)
@@ -83,6 +82,7 @@ func CalculateWMMMagneticField(loc Spherical, t time.Time) (field GeocentricMagn
 		lambda := float64(loc.Longitude)*Deg
 		sinPhi := math.Sin(phi)
 		cosPhi := math.Cos(phi)
+		var g, h, dg, dh float64
 		for n:=1; n<=MaxLegendreOrder; n++ {
 			nn := float64(n+1)
 			// if height varies, recalculate from here
@@ -97,10 +97,7 @@ func CalculateWMMMagneticField(loc Spherical, t time.Time) (field GeocentricMagn
 					q *= math.Sqrt(2/polynomial.FactorialRatioFloat(n+m, n-m))
 				}
 				dp := nn*math.Tan(phi)*p - (nn-mf)/cosPhi*q
-				g, h, dg, dh, err := GetWMMCoefficients(n, m, Epoch.ToTime())
-				if err != nil {
-					panic(err)
-				}
+				g, h, dg, dh, err = GetWMMCoefficients(n, m, Epoch.ToTime())
 				// if longitude varies, recalculate from here
 				sinMLambda := math.Sin(mf*lambda)
 				cosMLambda := math.Cos(mf*lambda)
@@ -110,7 +107,6 @@ func CalculateWMMMagneticField(loc Spherical, t time.Time) (field GeocentricMagn
 				curField.DX += -f*(dg*cosMLambda+dh*sinMLambda)*dp
 				curField.DY += f/cosPhi*mf*(dg*sinMLambda-dh*cosMLambda)*p
 				curField.DZ += -nn*f*(dg*cosMLambda+dh*sinMLambda)*p
-				log.Printf("%d,%d: %f sum %f", n, m, f/cosPhi*mf*(g*sinMLambda-h*cosMLambda)*p, field.Y)
 			}
 		}
 	}
@@ -121,5 +117,5 @@ func CalculateWMMMagneticField(loc Spherical, t time.Time) (field GeocentricMagn
 	field.DX = curField.DX
 	field.DY = curField.DY
 	field.DZ = curField.DZ
-	return field
+	return field, err
 }
