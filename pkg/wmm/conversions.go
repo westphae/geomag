@@ -1,39 +1,12 @@
 package wmm
 
 import (
+	"github.com/westphae/geomag/pkg/egm96"
 	"math"
 	"time"
-
-	"github.com/westphae/geomag/pkg/units"
-)
-
-const (
-	A units.Meters = 6378137
-	F = 1/298.257223563
-	E2 = F*(2-F)
-	Deg = 1/57.29577951308232
 )
 
 type DecimalYear float64
-
-type Geodetic units.Location
-
-type Spherical units.Location
-
-func (l Geodetic) ToSpherical() (s Spherical) {
-	sinPhi := math.Sin(float64(l.Latitude)*Deg)
-	cosPhi := math.Cos(float64(l.Latitude)*Deg)
-	h := float64(l.Height)
-	rc := float64(A)/math.Sqrt(1-E2*sinPhi*sinPhi)
-	p := (rc+h)*cosPhi
-	z := (rc*(1-E2)+h)*sinPhi
-	r := math.Sqrt(p*p+z*z)
-	return Spherical{
-		Latitude: units.Degrees(math.Asin(z/r)/Deg),
-		Longitude: l.Longitude,
-		Height: units.Meters(r),
-	}
-}
 
 // DecimalYearsToTime converts an epoch-like float64 year like 2015.0 to a Go time.Time.
 // Per document MIL-PRF-89500B Section 3.2, "Time is referenced in decimal years
@@ -59,10 +32,10 @@ func TimeToDecimalYears(t time.Time) (y DecimalYear) {
 	return DecimalYear(tYear) + DecimalYear((tDay+tSeconds/86400)/yearDays)
 }
 
-func (f GeocentricMagneticField) ToEllipsoidal(l Geodetic) (g EllipsoidalMagneticField) {
+func (f GeocentricMagneticField) ToEllipsoidal(l egm96.Geodetic) (g EllipsoidalMagneticField) {
 	ll := l.ToSpherical()
-	cosDPhi := math.Cos(float64(ll.Latitude-l.Latitude)*Deg)
-	sinDPhi := math.Sin(float64(ll.Latitude-l.Latitude)*Deg)
+	cosDPhi := math.Cos(float64(ll.latitude-l.latitude)* egm96.Deg)
+	sinDPhi := math.Sin(float64(ll.latitude-l.latitude)* egm96.Deg)
 	g.X = f.X*cosDPhi - f.Z*sinDPhi
 	g.Y = f.Y
 	g.Z = f.X*sinDPhi + f.Z*cosDPhi

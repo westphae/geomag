@@ -1,14 +1,10 @@
-package units
+package egm96
+
+const Deg = 1/57.29577951308232
 
 type Meters float64
 
 type Degrees float64
-
-type Location struct {
-	Latitude Degrees
-	Longitude Degrees
-	Height Meters
-}
 
 func MetersFromFeet(ft float64) (m Meters) {
 	return Meters(0.3048*ft)

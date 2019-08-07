@@ -3,12 +3,11 @@ package wmm
 import (
 	"bufio"
 	"bytes"
+	"github.com/westphae/geomag/pkg/egm96"
 	"io/ioutil"
 	"strconv"
 	"strings"
 	"testing"
-
-	"github.com/westphae/geomag/pkg/units"
 )
 
 const (
@@ -30,20 +29,20 @@ func TestMagneticFieldFromPaperDetail(t *testing.T) {
 	// Test values in paper are only for original version of WMM-2015
 	LoadWMMCOF("testdata/WMM2015v1.COF")
 	tt := DecimalYear(2017.5)
-	loc := Geodetic{
-		Latitude: units.Degrees(-80),
-		Longitude: units.Degrees(240),
-		Height: units.Meters(100e3),
+	loc := egm96.Geodetic{
+		latitude:  egm96.Degrees(-80),
+		longitude: egm96.Degrees(240),
+		height:    egm96.Meters(100e3),
 	}
 
-	testDiff("lambda", float64(loc.Longitude)*Deg, 4.1887902048, epsM, t)
-	testDiff("phi", float64(loc.Latitude)*Deg, -1.3962634016, epsM, t)
-	testDiff("h", float64(loc.Height), 100000.0000000000, epsM, t)
+	testDiff("lambda", float64(loc.longitude)*egm96.Deg, 4.1887902048, epsM, t)
+	testDiff("phi", float64(loc.latitude)*egm96.Deg, -1.3962634016, epsM, t)
+	testDiff("h", float64(loc.height), 100000.0000000000, epsM, t)
 	testDiff("t", float64(tt), 2017.5000000000, epsM, t)
 
 	locS := loc.ToSpherical()
-	testDiff("phi-prime", float64(locS.Latitude)*Deg, -1.3951289589, epsM, t)
-	testDiff("r", float64(locS.Height), 6457402.3484473705, epsM, t)
+	testDiff("phi-prime", float64(locS.latitude)*egm96.Deg, -1.3951289589, epsM, t)
+	testDiff("r", float64(locS.height), 6457402.3484473705, epsM, t)
 
 	var g, h float64
 	g, h, _, _, _ = GetWMMCoefficients(1, 0, tt.ToTime())
@@ -84,19 +83,19 @@ func TestMagneticFieldFromPaperDetail(t *testing.T) {
 
 	testDiff("F", MagneticField(mag).F(), 52611.1423211683, epsM, t)
 	testDiff("H", MagneticField(mag).H(), 15862.0423159539, epsM, t)
-	testDiff("D", MagneticField(mag).D(), 1.2043399870/Deg, epsM, t)
-	testDiff("I", MagneticField(mag).I(), -1.2645351837/Deg, epsM, t)
+	testDiff("D", MagneticField(mag).D(), 1.2043399870/egm96.Deg, epsM, t)
+	testDiff("I", MagneticField(mag).I(), -1.2645351837/egm96.Deg, epsM, t)
 	testDiff("DF", MagneticField(mag).DF(), -77.2340297896, epsM, t)
 	testDiff("DH", MagneticField(mag).DH(), 16.5720479716, epsM, t)
-	testDiff("DD", MagneticField(mag).DD(), -0.0015009297/Deg, epsM, t)
-	testDiff("DI", MagneticField(mag).DI(), 0.0007945653/Deg, epsM, t)
+	testDiff("DD", MagneticField(mag).DD(), -0.0015009297/egm96.Deg, epsM, t)
+	testDiff("DI", MagneticField(mag).DI(), 0.0007945653/egm96.Deg, epsM, t)
 }
 
 func TestAllTestValuesFromPaper(t *testing.T) {
 	var (
 		date                   DecimalYear
-		height                 units.Meters
-		lat, lon               units.Degrees
+		height                 egm96.Meters
+		lat, lon               egm96.Degrees
 		x, y, z                float64
 		h, f, i, d             float64
 		gv                     float64
@@ -127,16 +126,16 @@ func TestAllTestValuesFromPaper(t *testing.T) {
 		if dd, err = strconv.ParseFloat(dat[1], 64); err != nil {
 			panic(err)
 		}
-		height = units.Meters(dd*1000)
+		height = egm96.Meters(dd*1000)
 		if dd, err = strconv.ParseFloat(dat[2], 64); err != nil {
 			panic(err)
 		}
-		lat = units.Degrees(dd)
+		lat = egm96.Degrees(dd)
 		if dd, err = strconv.ParseFloat(dat[3], 64); err != nil {
 			panic(err)
 		}
-		lon = units.Degrees(dd)
-		loc := Geodetic{Latitude: lat, Longitude: lon, Height: height}
+		lon = egm96.Degrees(dd)
+		loc := egm96.Geodetic{latitude: lat, longitude: lon, height: height}
 
 		magS, _ := CalculateWMMMagneticField(loc.ToSpherical(), date.ToTime())
 		mag := magS.ToEllipsoidal(loc)

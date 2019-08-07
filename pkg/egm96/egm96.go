@@ -1,14 +1,72 @@
+// Package egm96 provides a representation of the EGM96 geopotential model of the Earth.
+//
+// EGM96 is the geoid reference model component of the World Geodetic System (WGS84).
+// It consists of n=m=360 spherical harmonic coefficients as published by the
+// National Geospatial-Intelligence Agency (NGA).  The NGA also publishes a raster grid
+// of the calculated heights which can be interpolated to approximate the geoid height
+// at any location.
+//
+// In effect, this model provides the height of sea level above the WGS84 reference ellipsoid.
+// It is used, for example, in GPS navigation to provide the height above sea level.
+//
+// This package is based on the` NGA-provided 15'x15' resolution grid encoding
+// the heights of the geopotential surface at each lat/long, and interpolates between grid
+// points using a bilinear interpolation.
 package egm96
 
 import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
-
-	"github.com/westphae/geomag/pkg/units"
 )
+
+const (
+	A  = 6378137         // Equatorial radius of WGS84 reference ellipsoid in meters
+	F  = 1/298.257223563 // Flattening of WGS84 reference ellipsoid
+	E2 = F*(2-F)         // Eccentricity squared of WGS84 reference ellipsoid
+)
+
+// Location is a type that represents a position in space as represented
+// by a latitude, a longitude and a height.
+type Location struct {
+	latitude  float64
+	longitude float64
+	height    float64
+}
+
+// NewLocationGeodetic returns a Location given an input latitude, longitude,
+// and height specified in the Geodetic system.
+//
+// The Geodetic coordinate system is the usual latitude, longitude, and
+// height above the WGS84 Reference Ellipsoid, i.e. as measured by a GPS receiver.
+//
+// Latitude and longitude are specified in decimal degrees and height in meters.
+//
+// Geodetic coordinates are the un-primed variables φ,λ,h in the WMM paper.
+func NewLocationGeodetic(latitude, longitude, height float64) (loc Location) {
+	return Location{
+		latitude: latitude*Deg,
+		longitude: longitude*Deg,
+		height: height,
+	}
+}
+
+// Spherical returns the location's phi (φ', corresponding to latitude),
+// lambda (λ', equal to geodetic longitude), and r (r, distance from center of
+// WGS sphere).  phi and lambda are in radians and r in meters.
+func (l Location) Spherical() (phi, lambda, r float64) {
+	sinPhi := math.Sin(l.latitude)
+	cosPhi := math.Cos(l.latitude)
+	h := l.height
+	rc := A/math.Sqrt(1-E2*sinPhi*sinPhi)
+	p := (rc+h)*cosPhi
+	z := (rc*(1-E2)+h)*sinPhi
+	r = math.Sqrt(p*p+z*z)
+	return math.Asin(z/r), l.longitude, r
+}
 
 var (
 	egm96X0, egm96X1, egm96DX float64
@@ -17,52 +75,67 @@ var (
 	egm96Grid []float64
 )
 
-// GetEGM96GridPoint looks up the grid point nearest the desired location
-// within the grid data for the EGM96 geoid grid model.
-// Ignores any Height value in the passed Location.
-func GetEGM96GridPoint(loc units.Location) (err error, nloc units.Location) {
+// NearestEGM96GridPoint looks up the grid point nearest the desired location within the
+// 15'x15' resolution grid data for the EGM96 geoid model.
+//
+// The returned Location contains the lat/long of the grid point and the height in meters of
+// the geoid relative to the WGS 84 reference ellipsoid at that grid point.
+//
+// Ignores any height value in the input Location.
+func (l Location) NearestEGM96GridPoint() (loc Location, err error) {
 	if len(egm96Grid)==0 {
 		loadEGM96Grid()
 	}
 
-	lng := float64(loc.Longitude)
-	lat := float64(loc.Latitude)
+	lng := l.longitude/Deg
+	for lng<0 {
+		lng += 360
+	}
+	for lng>=360 {
+		lng -= 360
+	}
+	lat := l.latitude/Deg
 	nLng := int((lng-egm96X0)/egm96DX+0.5)
 	nLat := int((lat-egm96Y0)/egm96DY+0.5)
 
 	if nLng < 0 || nLng > egm96XN {
-		return fmt.Errorf("requested longitude %4.2f lies outside of EGM96 longitude range %4.1f to %4.1f",
-			lng, egm96X0, egm96X1), units.Location{}
+		return Location{},
+			fmt.Errorf("requested longitude %4.2f lies outside of EGM96 longitude range %4.1f to %4.1f",
+				lng, egm96X0, egm96X1)
 	}
 	if nLat < 0 || nLat > egm96YN {
-		return fmt.Errorf("requested latitude %4.2f lies outside of EGM96 latitude range %4.1f to %4.1f",
-			lat, egm96Y0, egm96Y1), units.Location{}
+		return Location{},
+			fmt.Errorf("requested latitude %4.2f lies outside of EGM96 latitude range %4.1f to %4.1f",
+				lat, egm96Y0, egm96Y1)
 	}
 
-	return nil, units.Location{
-		Latitude:  units.Degrees(egm96Y0+egm96DY*float64(nLat)),
-		Longitude: units.Degrees(egm96X0+egm96DX*float64(nLng)),
-		Height:    units.Meters(egm96Grid[nLat*egm96XN+nLng]),
-	}
+	return Location{
+		latitude:  (egm96Y0+egm96DY*float64(nLat))*Deg,
+		longitude: (egm96X0+egm96DX*float64(nLng))*Deg,
+		height:    egm96Grid[nLat*egm96XN+nLng],
+	}, nil
 }
 
-func ConvertMSLToHeightAboveWGS84(loc units.Location) (err error, h units.Meters) {
+// HeightAboveWGS84Ellipsoid calculates the height of the WGS84 geoid at the
+// input Location and adds the height above MSL in the input Location, giving the
+// total height above the WGS 84 reference ellipsoid.
+func (l Location) HeightAboveWGS84Ellipsoid() (h float64, err error) {
 	if len(egm96Grid)==0 {
 		loadEGM96Grid()
 	}
 
-	lng := float64(loc.Longitude)
-	lat := float64(loc.Latitude)
+	lng := l.longitude/Deg
+	lat := l.latitude/Deg
 	nLng := int((lng-egm96X0)/egm96DX) // Grid x just below desired x
 	nLat := int((lat-egm96Y0)/egm96DY) // Grid y just below desired y
 
 	if nLng < 0 || nLng > egm96XN {
-		return fmt.Errorf("requested longitude %4.2f lies outside of EGM96 longitude range %4.1f to %4.1f",
-			lng, egm96X0, egm96X1), 0
+		return 0, fmt.Errorf("requested longitude %4.2f lies outside of EGM96 longitude range %4.1f to %4.1f",
+			lng, egm96X0, egm96X1)
 	}
 	if nLat < 0 || nLat > egm96YN {
-		return fmt.Errorf("requested latitude %4.2f lies outside of EGM96 latitude range %4.1f to %4.1f",
-			lat, egm96Y0, egm96Y1), 0
+		return 0, fmt.Errorf("requested latitude %4.2f lies outside of EGM96 latitude range %4.1f to %4.1f",
+			lat, egm96Y0, egm96Y1)
 	}
 
 	x := (lng-egm96X0)/egm96DX-float64(nLng)
@@ -72,14 +145,14 @@ func ConvertMSLToHeightAboveWGS84(loc units.Location) (err error, h units.Meters
 	h01 := egm96Grid[(nLat+1)*egm96XN+nLng]
 	h11 := egm96Grid[(nLat+1)*egm96XN+nLng+1]
 
-	//TODO: implement spline interpolation to improve on bilinear
-	h = units.Meters((1-x)*(1-y)*h00 + x*(1-y)*h10 + (1-x)*y*h01 + x*y*h11) + loc.Height
+	//TODO: implement spline interpolation to improve on bi-linear
+	h = ((1-x)*(1-y)*h00 + x*(1-y)*h10 + (1-x)*y*h01 + x*y*h11) + l.height
 
-	return err, h
+	return h, err
 }
 
 func loadEGM96Grid() {
-	data, err := Asset("ww15mgh.grd")
+	data, err := getAsset("ww15mgh.grd")
 	if err != nil {
 		panic(err)
 	}
