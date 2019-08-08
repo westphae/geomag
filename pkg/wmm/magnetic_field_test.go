@@ -62,21 +62,22 @@ func TestMagneticFieldFromPaperDetail(t *testing.T) {
 	testDiff("g(2,2,t)", g, 1682.6000000000, epsM, t)
 	testDiff("h(2,2,t)", h, -675.2500000000, epsM, t)
 
-	magS, _ := CalculateWMMMagneticField(loc, tt.ToTime())
-	testDiff("X-prime", magS.X, 5626.6068398092, epsM, t)
-	testDiff("Y-prime", magS.Y, 14808.8492023104, epsM, t)
-	testDiff("Z-prime", magS.Z, -50169.4287102381, epsM, t)
-	testDiff("Xprime-dot", magS.DX, 28.2627812813, epsM, t)
-	testDiff("Yprime-dot", magS.DY, 6.9411521726, epsM, t)
-	testDiff("Zprime-dot", magS.DZ, 86.2115570931, epsM, t)
+	mag, _ := CalculateWMMMagneticField(loc, tt.ToTime())
+	xS, yS, zS, dxS, dyS, dzS := mag.Spherical()
+	testDiff("X-prime", xS, 5626.6068398092, epsM, t)
+	testDiff("Y-prime", yS, 14808.8492023104, epsM, t)
+	testDiff("Z-prime", zS, -50169.4287102381, epsM, t)
+	testDiff("Xprime-dot", dxS, 28.2627812813, epsM, t)
+	testDiff("Yprime-dot", dyS, 6.9411521726, epsM, t)
+	testDiff("Zprime-dot", dzS, 86.2115570931, epsM, t)
 
-	mag := magS.ToEllipsoidal(loc)
-	testDiff("X", mag.X, 5683.5175495763, epsM, t)
-	testDiff("Y", mag.Y, 14808.8492023104, epsM, t)
-	testDiff("Z", mag.Z, -50163.0133654779, epsM, t)
-	testDiff("Xdot", mag.DX, 28.1649610434, epsM, t)
-	testDiff("Ydot", mag.DY, 6.9411521726, epsM, t)
-	testDiff("Zdot", mag.DZ, 86.2435641169, epsM, t)
+	xE, yE, zE, dxE, dyE, dzE := mag.Ellipsoidal()
+	testDiff("X", xE, 5683.5175495763, epsM, t)
+	testDiff("Y", yE, 14808.8492023104, epsM, t)
+	testDiff("Z", zE, -50163.0133654779, epsM, t)
+	testDiff("Xdot", dxE, 28.1649610434, epsM, t)
+	testDiff("Ydot", dyE, 6.9411521726, epsM, t)
+	testDiff("Zdot", dzE, 86.2435641169, epsM, t)
 
 	testDiff("F", MagneticField(mag).F(), 52611.1423211683, epsM, t)
 	testDiff("H", MagneticField(mag).H(), 15862.0423159539, epsM, t)
@@ -134,65 +135,65 @@ func TestAllTestValuesFromPaper(t *testing.T) {
 		lon = dd
 		loc := egm96.NewLocationGeodetic(lat,lon,height)
 
-		magS, _ := CalculateWMMMagneticField(loc, date.ToTime())
-		mag := magS.ToEllipsoidal(loc)
+		mag, _ := CalculateWMMMagneticField(loc, date.ToTime())
+		xE, yE, zE, dxE, dyE, dzE := mag.Ellipsoidal()
 
 		if x, err = strconv.ParseFloat(dat[4], 64); err != nil {
 			panic(err)
 		}
-		testDiff("X", MagneticField(mag).X, x, 0.05, t)
+		testDiff("X", xE, x, 0.05, t)
 		if y, err = strconv.ParseFloat(dat[5], 64); err != nil {
 			panic(err)
 		}
-		testDiff("Y", MagneticField(mag).Y, y, 0.05, t)
+		testDiff("Y", yE, y, 0.05, t)
 		if z, err = strconv.ParseFloat(dat[6], 64); err != nil {
 			panic(err)
 		}
-		testDiff("Z", MagneticField(mag).Z, z, 0.05, t)
+		testDiff("Z", zE, z, 0.05, t)
 		if h, err = strconv.ParseFloat(dat[7], 64); err != nil {
 			panic(err)
 		}
-		testDiff("H", MagneticField(mag).H(), h, 0.05, t)
+		testDiff("H", mag.H(), h, 0.05, t)
 		if f, err = strconv.ParseFloat(dat[8], 64); err != nil {
 			panic(err)
 		}
-		testDiff("F", MagneticField(mag).F(), f, 0.05, t)
+		testDiff("F", mag.F(), f, 0.05, t)
 		if i, err = strconv.ParseFloat(dat[9], 64); err != nil {
 			panic(err)
 		}
-		testDiff("I", MagneticField(mag).I(), i, 0.005, t)
+		testDiff("I", mag.I(), i, 0.005, t)
 		if d, err = strconv.ParseFloat(dat[10], 64); err != nil {
 			panic(err)
 		}
-		testDiff("D", MagneticField(mag).D(), d, 0.005, t)
+		testDiff("D", mag.D(), d, 0.005, t)
 		if gv, err = strconv.ParseFloat(dat[11], 64); err != nil {
 			panic(err)
 		}
-		testDiff("GV", MagneticField(mag).GV(loc), gv, 0.005, t)
+		testDiff("GV", mag.GV(loc), gv, 0.005, t)
 		if xdot, err = strconv.ParseFloat(dat[12], 64); err != nil {
 			panic(err)
 		}
-		testDiff("Xdot", MagneticField(mag).DX, xdot, 0.05, t)
+		testDiff("Xdot", dxE, xdot, 0.05, t)
 		if ydot, err = strconv.ParseFloat(dat[13], 64); err != nil {
 			panic(err)
 		}
-		testDiff("Ydot", MagneticField(mag).DY, ydot, 0.05, t)
+		testDiff("Ydot", dyE, ydot, 0.05, t)
 		if zdot, err = strconv.ParseFloat(dat[14], 64); err != nil {
 			panic(err)
 		}
-		testDiff("Zdot", MagneticField(mag).DZ, zdot, 0.05, t)
+		testDiff("Zdot", dzE, zdot, 0.05, t)
 		if hdot, err = strconv.ParseFloat(dat[15], 64); err != nil {
 			panic(err)
 		}
-		testDiff("Hdot", MagneticField(mag).DH(), hdot, 0.05, t)
+		testDiff("Hdot", mag.DH(), hdot, 0.05, t)
 		if fdot, err = strconv.ParseFloat(dat[16], 64); err != nil {
 			panic(err)
 		}
-		testDiff("Fdot", MagneticField(mag).DF(), fdot, 0.05, t)
+		testDiff("Fdot", mag.DF(), fdot, 0.05, t)
 		if idot, err = strconv.ParseFloat(dat[17], 64); err != nil {
 			panic(err)
 		}
-		testDiff("Idot", MagneticField(mag).DI(), idot, 0.005, t)
+		testDiff("Idot", mag.DI(), idot, 0.005, t)
 		if ddot, err = strconv.ParseFloat(dat[18], 64); err != nil {
 			panic(err)
 		}

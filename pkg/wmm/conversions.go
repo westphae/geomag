@@ -1,8 +1,6 @@
 package wmm
 
 import (
-	"github.com/westphae/geomag/pkg/egm96"
-	"math"
 	"time"
 )
 
@@ -30,18 +28,4 @@ func TimeToDecimalYears(t time.Time) (y DecimalYear) {
 	tDay := float64(t.YearDay()-1)
 	tSeconds := float64(60*(60*t.Hour()+t.Minute())+t.Second())+float64(t.Nanosecond())/1e9
 	return DecimalYear(tYear) + DecimalYear((tDay+tSeconds/86400)/yearDays)
-}
-
-func (f GeocentricMagneticField) ToEllipsoidal(l egm96.Location) (g EllipsoidalMagneticField) {
-	latS, _, _ := l.Spherical()
-	latG, _, _ := l.Geodetic()
-	cosDPhi := math.Cos(latS-latG)
-	sinDPhi := math.Sin(latS-latG)
-	g.X = f.X*cosDPhi - f.Z*sinDPhi
-	g.Y = f.Y
-	g.Z = f.X*sinDPhi + f.Z*cosDPhi
-	g.DX = f.DX*cosDPhi - f.DZ*sinDPhi
-	g.DY = f.DY
-	g.DZ = f.DX*sinDPhi + f.DZ*cosDPhi
-	return g
 }

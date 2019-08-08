@@ -12,29 +12,51 @@ const AGeo = 6371200 // Geomagnetic Reference Radius
 
 // MagneticField represents a geomagnetic field and its rate of change.
 type MagneticField struct {
-	X, Y, Z    float64
-	DX, DY, DZ float64
+	l egm96.Location
+	x, y, z    float64
+	dx, dy, dz float64
 }
 
-type GeocentricMagneticField MagneticField
+// Ellipsoidal returns the magnetic field in ellipsoidal coordinate axes.
+// Field strengths are in nT and field strength changes in nT/Year.
+func (m MagneticField) Ellipsoidal() (x, y, z, dx, dy, dz float64) {
+	latS, _, _ := m.l.Spherical()
+	latG, _, _ := m.l.Geodetic()
+	cosDPhi := math.Cos(latS-latG)
+	sinDPhi := math.Sin(latS-latG)
+	x = m.x*cosDPhi - m.z*sinDPhi
+	y = m.y
+	z = m.x*sinDPhi + m.z*cosDPhi
+	dx = m.dx*cosDPhi - m.dz*sinDPhi
+	dy = m.dy
+	dz = m.dx*sinDPhi + m.dz*cosDPhi
+	return x, y, z, dx, dy, dz
+}
 
-type EllipsoidalMagneticField MagneticField
+// Spherical returns the magnetic field in spherical coordinate axes.
+// Field strengths are in nT and field strength changes in nT/Year.
+func (m MagneticField) Spherical() (x, y, z, dx, dy, dz float64) {
+	return m.x, m.y, m.z, m.dx, m.dy, m.dz
+}
 
 func (m MagneticField) H() (h float64) {
-	return math.Sqrt(m.X*m.X + m.Y*m.Y)
+	x, y, _, _, _, _ := m.Ellipsoidal()
+	return math.Sqrt(x*x + y*y)
 }
 
 func (m MagneticField) F() (f float64) {
-	h := m.H()
-	return math.Sqrt(h*h + m.Z*m.Z)
+	x, y, z, _, _, _ := m.Ellipsoidal()
+	return math.Sqrt(x*x + y*y + z*z)
 }
 
 func (m MagneticField) I() (f float64) {
-	return math.Atan2(m.Z, m.H())/egm96.Deg
+	_, _, z, _, _, _ := m.Ellipsoidal()
+	return math.Atan2(z, m.H())/egm96.Deg
 }
 
 func (m MagneticField) D() (f float64) {
-	return math.Atan2(m.Y, m.X)/egm96.Deg
+	x, y, _, _, _, _ := m.Ellipsoidal()
+	return math.Atan2(y, x)/egm96.Deg
 }
 
 func (m MagneticField) GV(loc egm96.Location) (f float64) {
@@ -50,21 +72,25 @@ func (m MagneticField) GV(loc egm96.Location) (f float64) {
 }
 
 func (m MagneticField) DH() (h float64) {
-	return (m.X*m.DX + m.Y*m.DY)/m.H()
+	x, y, _, dx, dy, _ := m.Ellipsoidal()
+	return (x*dx + y*dy)/m.H()
 }
 
 func (m MagneticField) DF() (f float64) {
-	return (m.X*m.DX + m.Y*m.DY + m.Z*m.DZ)/m.F()
+	x, y, z, dx, dy, dz := m.Ellipsoidal()
+	return (x*dx + y*dy + z*dz)/m.F()
 }
 
 func (m MagneticField) DI() (f float64) {
 	f = m.F()
-	return (m.H()*m.DZ - m.DH()*m.Z)/(f*f)/ egm96.Deg
+	_, _, z, _, _, dz := m.Ellipsoidal()
+	return (m.H()*dz - m.DH()*z)/(f*f)/ egm96.Deg
 }
 
 func (m MagneticField) DD() (f float64) {
 	f = m.H()
-	return (m.X*m.DY - m.DX*m.Y)/(f*f)/ egm96.Deg
+	x, y, _, dx, dy, _ := m.Ellipsoidal()
+	return (x*dy - dx*y)/(f*f)/ egm96.Deg
 }
 
 func (m MagneticField) DGV() (f float64) {
@@ -73,13 +99,13 @@ func (m MagneticField) DGV() (f float64) {
 
 var (
 	curLoc   egm96.Location // Spherical
-	curField GeocentricMagneticField
+	curField MagneticField
 )
 
-func CalculateWMMMagneticField(loc egm96.Location, t time.Time) (field GeocentricMagneticField, err error) {
+func CalculateWMMMagneticField(loc egm96.Location, t time.Time) (field MagneticField, err error) {
 	if !loc.Equals(curLoc) {
 		curLoc = loc
-		curField = *new(GeocentricMagneticField)
+		curField = *new(MagneticField)
 		phi, lambda, hh := loc.Spherical()
 		sinPhi := math.Sin(phi)
 		cosPhi := math.Cos(phi)
@@ -102,21 +128,22 @@ func CalculateWMMMagneticField(loc egm96.Location, t time.Time) (field Geocentri
 				// if longitude varies, recalculate from here
 				sinMLambda := math.Sin(mf*lambda)
 				cosMLambda := math.Cos(mf*lambda)
-				curField.X += -f*(g*cosMLambda+h*sinMLambda)*dp
-				curField.Y += f/cosPhi*mf*(g*sinMLambda-h*cosMLambda)*p
-				curField.Z += -nn*f*(g*cosMLambda+h*sinMLambda)*p
-				curField.DX += -f*(dg*cosMLambda+dh*sinMLambda)*dp
-				curField.DY += f/cosPhi*mf*(dg*sinMLambda-dh*cosMLambda)*p
-				curField.DZ += -nn*f*(dg*cosMLambda+dh*sinMLambda)*p
+				curField.x += -f*(g*cosMLambda+h*sinMLambda)*dp
+				curField.y += f/cosPhi*mf*(g*sinMLambda-h*cosMLambda)*p
+				curField.z += -nn*f*(g*cosMLambda+h*sinMLambda)*p
+				curField.dx += -f*(dg*cosMLambda+dh*sinMLambda)*dp
+				curField.dy += f/cosPhi*mf*(dg*sinMLambda-dh*cosMLambda)*p
+				curField.dz += -nn*f*(dg*cosMLambda+dh*sinMLambda)*p
 			}
 		}
 	}
 	dt := float64(TimeToDecimalYears(t)- Epoch)
-	field.X = curField.X + dt*curField.DX
-	field.Y = curField.Y + dt*curField.DY
-	field.Z = curField.Z + dt*curField.DZ
-	field.DX = curField.DX
-	field.DY = curField.DY
-	field.DZ = curField.DZ
+	field.l = loc
+	field.x = curField.x + dt*curField.dx
+	field.y = curField.y + dt*curField.dy
+	field.z = curField.z + dt*curField.dz
+	field.dx = curField.dx
+	field.dy = curField.dy
+	field.dz = curField.dz
 	return field, err
 }
