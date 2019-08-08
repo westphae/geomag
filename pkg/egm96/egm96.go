@@ -56,6 +56,19 @@ func NewLocationGeodetic(latitude, longitude, height float64) (loc Location) {
 	}
 }
 
+// Equals returns whether the latitude, longitude and height of the input location
+// are equal to those of the caller.
+func (l Location) Equals(ll Location) bool {
+	return l.latitude==ll.latitude && l.longitude==ll.longitude && l.height==ll.height
+}
+
+// Geodetic returns the location's lat (latitude), lng (longitude), and h (height).
+// lat and lng are in radians and r is in meters.
+// Geodetic coordinates are the variables φ,λ,h in the WMM paper.
+func (l Location) Geodetic() (phi, lambda, r float64) {
+	return l.latitude, l.longitude, l.height
+}
+
 // Spherical returns the location's phi (φ', corresponding to latitude),
 // lambda (λ, equal to geodetic longitude), and r (r, distance from center of
 // WGS sphere).  phi and lambda are in radians and r is in meters.
@@ -69,13 +82,6 @@ func (l Location) Spherical() (phi, lambda, r float64) {
 	z := (rc*(1-E2)+h)*sinPhi
 	r = math.Sqrt(p*p+z*z)
 	return math.Asin(z/r), l.longitude, r
-}
-
-// Geodetic returns the location's lat (latitude), lng (longitude), and h (height).
-// lat and lng are in radians and r is in meters.
-// Geodetic coordinates are the variables φ,λ,h in the WMM paper.
-func (l Location) Geodetic() (phi, lambda, r float64) {
-	return l.latitude, l.longitude, l.height
 }
 
 // HeightAboveMSL calculates the height of the EGM96 geoid at the input Location,
