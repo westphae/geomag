@@ -23,9 +23,9 @@ func TestEGM96GridLookup(t *testing.T) {
 	for i:=0; i<len(lats); i++ {
 		p, _ := NewLocationGeodetic(lats[i],lngs[i],0).NearestEGM96GridPoint()
 
-		testDiff("latitude", float64(p.latitude)/Deg, float64(lats[i]), eps, t)
-		testDiff("longitude", float64(p.longitude)/Deg, float64(lngs[i]), eps, t)
-		testDiff("height", float64(p.height), float64(hts[i]), eps, t)
+		testDiff("latitude", p.latitude/Deg, lats[i], eps, t)
+		testDiff("longitude", p.longitude/Deg, lngs[i], eps, t)
+		testDiff("height", p.height, hts[i], eps, t)
 	}
 }
 
@@ -35,9 +35,9 @@ func TestEGM96GridInterpolationAgainstKnown(t *testing.T) {
 	hts  := []float64{-30.262, -67.347, 17.162, -31.628, -2.969, -43.575, 15.871, 50.066, 17.329}
 
 	for i:=0; i<len(lats); i++ {
-		h, _ := NewLocationGeodetic(lats[i],lngs[i],0).HeightAboveWGS84Ellipsoid()
+		h, _ := NewLocationGeodetic(lats[i],lngs[i],0).HeightAboveMSL()
 		// 0.1 seems to be the error introduced by bi-linear interpolation rather than splines
-		testDiff("height", float64(h), float64(hts[i]), 0.1, t)
+		testDiff("height", -h, hts[i], 0.1, t)
 	}
 }
 
@@ -48,7 +48,7 @@ func ExampleNearestEGM96GridPoint() {
 }
 
 func ExampleConvertMSLToHeightAboveWGS84() {
-	h, _ := NewLocationGeodetic(-12.25,82.75,1000).HeightAboveWGS84Ellipsoid()
+	h, _ := NewLocationGeodetic(-12.25,82.75,1000).HeightAboveMSL()
 	fmt.Printf("height Above Ellipsoid: %7.3f", h)
-	// Output: height Above Ellipsoid: 932.653
+	// Output: height Above Ellipsoid: 1067.347
 }
