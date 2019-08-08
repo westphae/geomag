@@ -29,20 +29,17 @@ func TestMagneticFieldFromPaperDetail(t *testing.T) {
 	// Test values in paper are only for original version of WMM-2015
 	LoadWMMCOF("testdata/WMM2015v1.COF")
 	tt := DecimalYear(2017.5)
-	loc := egm96.Geodetic{
-		latitude:  egm96.Degrees(-80),
-		longitude: egm96.Degrees(240),
-		height:    egm96.Meters(100e3),
-	}
+	loc := egm96.NewLocationGeodetic(-80,240,100e3)
 
-	testDiff("lambda", float64(loc.longitude)*egm96.Deg, 4.1887902048, epsM, t)
-	testDiff("phi", float64(loc.latitude)*egm96.Deg, -1.3962634016, epsM, t)
-	testDiff("h", float64(loc.height), 100000.0000000000, epsM, t)
+	lat, lng, hh := loc.Geodetic()
+	testDiff("lambda", lng, 4.1887902048, epsM, t)
+	testDiff("phi", lat, -1.3962634016, epsM, t)
+	testDiff("h", hh, 100000.0000000000, epsM, t)
 	testDiff("t", float64(tt), 2017.5000000000, epsM, t)
 
-	locS := loc.ToSpherical()
-	testDiff("phi-prime", float64(locS.latitude)*egm96.Deg, -1.3951289589, epsM, t)
-	testDiff("r", float64(locS.height), 6457402.3484473705, epsM, t)
+	lat, lng, hh = loc.Spherical()
+	testDiff("phi-prime", lat, -1.3951289589, epsM, t)
+	testDiff("r", hh, 6457402.3484473705, epsM, t)
 
 	var g, h float64
 	g, h, _, _, _ = GetWMMCoefficients(1, 0, tt.ToTime())
@@ -65,7 +62,7 @@ func TestMagneticFieldFromPaperDetail(t *testing.T) {
 	testDiff("g(2,2,t)", g, 1682.6000000000, epsM, t)
 	testDiff("h(2,2,t)", h, -675.2500000000, epsM, t)
 
-	magS, _ := CalculateWMMMagneticField(locS, tt.ToTime())
+	magS, _ := CalculateWMMMagneticField(loc, tt.ToTime())
 	testDiff("X-prime", magS.X, 5626.6068398092, epsM, t)
 	testDiff("Y-prime", magS.Y, 14808.8492023104, epsM, t)
 	testDiff("Z-prime", magS.Z, -50169.4287102381, epsM, t)
@@ -94,8 +91,8 @@ func TestMagneticFieldFromPaperDetail(t *testing.T) {
 func TestAllTestValuesFromPaper(t *testing.T) {
 	var (
 		date                   DecimalYear
-		height                 egm96.Meters
-		lat, lon               egm96.Degrees
+		height                 float64
+		lat, lon               float64
 		x, y, z                float64
 		h, f, i, d             float64
 		gv                     float64
@@ -126,18 +123,18 @@ func TestAllTestValuesFromPaper(t *testing.T) {
 		if dd, err = strconv.ParseFloat(dat[1], 64); err != nil {
 			panic(err)
 		}
-		height = egm96.Meters(dd*1000)
+		height = dd*1000
 		if dd, err = strconv.ParseFloat(dat[2], 64); err != nil {
 			panic(err)
 		}
-		lat = egm96.Degrees(dd)
+		lat = dd
 		if dd, err = strconv.ParseFloat(dat[3], 64); err != nil {
 			panic(err)
 		}
-		lon = egm96.Degrees(dd)
-		loc := egm96.Geodetic{latitude: lat, longitude: lon, height: height}
+		lon = dd
+		loc := egm96.NewLocationGeodetic(lat,lon,height)
 
-		magS, _ := CalculateWMMMagneticField(loc.ToSpherical(), date.ToTime())
+		magS, _ := CalculateWMMMagneticField(loc, date.ToTime())
 		mag := magS.ToEllipsoidal(loc)
 
 		if x, err = strconv.ParseFloat(dat[4], 64); err != nil {

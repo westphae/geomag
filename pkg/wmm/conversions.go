@@ -32,10 +32,11 @@ func TimeToDecimalYears(t time.Time) (y DecimalYear) {
 	return DecimalYear(tYear) + DecimalYear((tDay+tSeconds/86400)/yearDays)
 }
 
-func (f GeocentricMagneticField) ToEllipsoidal(l egm96.Geodetic) (g EllipsoidalMagneticField) {
-	ll := l.ToSpherical()
-	cosDPhi := math.Cos(float64(ll.latitude-l.latitude)* egm96.Deg)
-	sinDPhi := math.Sin(float64(ll.latitude-l.latitude)* egm96.Deg)
+func (f GeocentricMagneticField) ToEllipsoidal(l egm96.Location) (g EllipsoidalMagneticField) {
+	latS, _, _ := l.Spherical()
+	latG, _, _ := l.Geodetic()
+	cosDPhi := math.Cos(latS-latG)
+	sinDPhi := math.Sin(latS-latG)
 	g.X = f.X*cosDPhi - f.Z*sinDPhi
 	g.Y = f.Y
 	g.Z = f.X*sinDPhi + f.Z*cosDPhi

@@ -26,3 +26,12 @@ The coefficients for 2015-2020 can be downloaded at https://www.ngdc.noaa.gov/ge
 ## Notes
 * Legendre function coefficients should be calculated once when first called and then cached.
 * WMM coefficients read into 4 [][]float64 slices g,h,gg,hh, triangular in shape
+
+## License Info
+This software is based on the NOAA World Magnetic Model.
+The source code in this project is not based on the source code provided by NOAA, but on the
+equations provided in the World Magnetic Model reference paper.
+
+The WMM source code is not subject to copyright protection: https://www.ngdc.noaa.gov/geomag/WMM/license.shtml
+
+The WMM source code is in the public domain and not licensed or under copyright. The information and software may be used freely by the public. As required by 17 U.S.C. 403, third parties producing copyrighted works consisting predominantly of the material produced by U.S. government agencies must provide notice with such work(s) identifying the U.S. Government material incorporated and stating that such material is not subject to copyright protection.
