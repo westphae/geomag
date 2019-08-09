@@ -56,7 +56,7 @@ func LoadWMMCOF(fn string) {
 	)
 
 	if fn=="" {
-		data, err = Asset("WMM.COF")
+		data, err = getAsset("WMM.COF")
 	} else {
 		data, err = ioutil.ReadFile(fn)
 	}
