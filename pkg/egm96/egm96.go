@@ -1,5 +1,5 @@
-// Package egm96 provides a representation of the 1996 Earth Gravitational Model (EGM96)
-// geopotential model of the Earth.
+// Package egm96 provides a representation of the 1996 Earth Gravitational Model (EGM96),
+// a geopotential model of the Earth.
 //
 // EGM96 is the geoid reference model component of the World Geodetic System (WGS84).
 // It consists of n=m=360 spherical harmonic coefficients as published by the

@@ -1,3 +1,16 @@
+// Package wmm provides a representation of the 2015 World Magnetic Model (WMM),
+// a mathematical model of the magnetic field produced by the Earth's core and
+// its variation over time.
+//
+// WMM is the magnetic model component of the World Geodetic System (WGS84).
+// It consists of n=m=12 spherical harmonic coefficients as published by the
+// National Geospatial-Intelligence Agency (NGA).
+//
+// This model evaluates all magnetic field components and their rates of change
+// for any location on the Earth's surface.  These field components include the
+// X, Y, and Z values and the declination D and inclination I.
+// The Declination is used, for example, in correcting a Magnetic Heading to a
+// True Heading.
 package wmm
 
 import (
@@ -18,6 +31,10 @@ type MagneticField struct {
 }
 
 // Ellipsoidal returns the magnetic field in ellipsoidal coordinate axes.
+//
+// The Ellipsoidal axes are the most commonly desired axes, in which the
+// horizontal directions are parallel to the WGS84 ellipsoid.
+//
 // Field strengths are in nT and field strength changes in nT/Year.
 func (m MagneticField) Ellipsoidal() (x, y, z, dx, dy, dz float64) {
 	latS, _, _ := m.l.Spherical()
@@ -34,31 +51,66 @@ func (m MagneticField) Ellipsoidal() (x, y, z, dx, dy, dz float64) {
 }
 
 // Spherical returns the magnetic field in spherical coordinate axes.
+//
+// The spherical axes are centered on the Earth's center of mass.
+// These axes won't typically be used for navigation on or near the
+// Earth's surface, but might be used in space.
+//
 // Field strengths are in nT and field strength changes in nT/Year.
 func (m MagneticField) Spherical() (x, y, z, dx, dy, dz float64) {
 	return m.x, m.y, m.z, m.dx, m.dy, m.dz
 }
 
+// H returns the strength of the magnetic field in the horizontal
+// direction, i.e. the component parallel to the WGS84 ellipsoid.
+//
+// The return value is in nT.
 func (m MagneticField) H() (h float64) {
 	x, y, _, _, _, _ := m.Ellipsoidal()
 	return math.Sqrt(x*x + y*y)
 }
 
+// F returns the total strength of the magnetic field.
+//
+// The return value is in nT.
 func (m MagneticField) F() (f float64) {
-	x, y, z, _, _, _ := m.Ellipsoidal()
+	x, y, z, _, _, _ := m.Spherical()
 	return math.Sqrt(x*x + y*y + z*z)
 }
 
+// I returns the Inclination of the magnetic field relative to the WGS84
+// ellipsoid.
+//
+// The inclination is the angle the field makes relative to the horizontal,
+// e.g. at the Magnetic North Pole, the field has a 90 degree inclination
+// and points straight down.
+//
+// The return value is in degrees.
 func (m MagneticField) I() (f float64) {
 	_, _, z, _, _, _ := m.Ellipsoidal()
 	return math.Atan2(z, m.H())/egm96.Deg
 }
 
+// D returns the Declination of the magnetic field relative to the WGS84
+// ellipsoid.
+//
+// The declination is the angle the field makes relative to True North.
+// This is the most often-used value provided for the WMM for near-Earth
+// navigation.  To convert Magnetic North to True North:
+//  d := field.D()
+//  TrueNorth := Magnetic_North + d
+//
+// The return value is in degrees.
 func (m MagneticField) D() (f float64) {
 	x, y, _, _, _, _ := m.Ellipsoidal()
 	return math.Atan2(y, x)/egm96.Deg
 }
 
+// GV returns the Grid Variation of the magnetic field.
+//
+// It is useful for specifying the magnetic field near the field poles.
+//
+// The return value is in degrees.
 func (m MagneticField) GV(loc egm96.Location) (f float64) {
 	f = m.D()
 	lat, lng, _ := loc.Geodetic()
@@ -71,28 +123,46 @@ func (m MagneticField) GV(loc egm96.Location) (f float64) {
 	return f
 }
 
+// DH returns the rate of change of the strength of the magnetic field in the
+// horizontal direction, i.e. the component parallel to the WGS84 ellipsoid.
+//
+// The return value is in nT/yr.
 func (m MagneticField) DH() (h float64) {
 	x, y, _, dx, dy, _ := m.Ellipsoidal()
 	return (x*dx + y*dy)/m.H()
 }
 
+// DF returns the rate of change of the total strength of the magnetic field.
+//
+// The return value is in nT/yr.
 func (m MagneticField) DF() (f float64) {
 	x, y, z, dx, dy, dz := m.Ellipsoidal()
 	return (x*dx + y*dy + z*dz)/m.F()
 }
 
+// DI returns the rate of change of the Inclination of the magnetic field
+// relative to the WGS84 ellipsoid.
+//
+// The return value is in degrees/yr.
 func (m MagneticField) DI() (f float64) {
 	f = m.F()
 	_, _, z, _, _, dz := m.Ellipsoidal()
 	return (m.H()*dz - m.DH()*z)/(f*f)/ egm96.Deg
 }
 
+// DD returns the rate of change of the Declination of the magnetic field
+// relative to the WGS84 ellipsoid.
+//
+// The return value is in degrees/yr.
 func (m MagneticField) DD() (f float64) {
 	f = m.H()
 	x, y, _, dx, dy, _ := m.Ellipsoidal()
 	return (x*dy - dx*y)/(f*f)/ egm96.Deg
 }
 
+// DGV returns the rate of change of the Grid Variation of the magnetic field.
+//
+// The return value is in degrees/yr.
 func (m MagneticField) DGV() (f float64) {
 	return m.DD()
 }
@@ -102,7 +172,27 @@ var (
 	curField MagneticField
 )
 
+// CalculateWMMMagneticField returns the magnetic field at the input location
+// at the input time.
+//
+// The WMM is valid at heights from -1km to +850km relative
+// to the WGS84 ellipsoid, so this function will return an error if the input
+// height is outside of that range.  Similarly, the function will return an
+// error if requested time is outside the validity period of the loaded
+// coefficients. The function will still return the calculated field in these
+// cases.  The error is informational.
+//
+// This function caches the WMM coefficients for computational speed.
+// TODO: implement this and check the description is correct.
+// It also caches intermediate computational steps for speed in looping over
+// locations.
+// The innermost loop should be over time, followed in order by height,
+// latitude, and finally longitude.
+//
+// See the description of LoadWMMCOF for the validity period of the
+// default (current) coefficients file.
 func CalculateWMMMagneticField(loc egm96.Location, t time.Time) (field MagneticField, err error) {
+	// TODO: give an err if height<-1000m or height>850000m.
 	if !loc.Equals(curLoc) {
 		curLoc = loc
 		curField = *new(MagneticField)

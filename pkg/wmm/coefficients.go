@@ -15,15 +15,20 @@ const (
 )
 
 var (
-	Epoch     DecimalYear
-	COFName   string
-	ValidDate time.Time
-	Gnm       [][]float64
-	Hnm       [][]float64
-	DGnm      [][]float64
-	DHnm      [][]float64
+	Epoch     DecimalYear // The Epoch of the loaded coefficients file, e.g. 2015.0
+	COFName   string      // The filename of the loaded COF file
+	ValidDate time.Time   // The beginning valid date of the loaded COF file
+	cGnm      [][]float64
+	cHnm      [][]float64
+	cDGnm     [][]float64
+	cDHnm     [][]float64
 )
 
+// GetWMMCoefficients calculates the spherical harmonic coefficients G(n,m), H(n,m)
+// and their rates of change dG(n,m), dH(n,m) at the input time.
+//
+// If the request n,m are invalid or the requested time is outside of the range
+// of validity of the loaded coefficients file, it will return an error.
 func GetWMMCoefficients(n, m int, t time.Time) (gnm, hnm, dgnm, dhnm float64, err error) {
 	if Epoch==0 {
 		LoadWMMCOF("")
@@ -40,13 +45,21 @@ func GetWMMCoefficients(n, m int, t time.Time) (gnm, hnm, dgnm, dhnm float64, er
 				t, ValidDate)
 	}
 	dt := float64(TimeToDecimalYears(t)- Epoch)
-	gnm = Gnm[n][m] + dt*DGnm[n][m]
-	hnm = Hnm[n][m] + dt*DHnm[n][m]
-	dgnm = DGnm[n][m]
-	dhnm = DHnm[n][m]
+	gnm = cGnm[n][m] + dt*cDGnm[n][m]
+	hnm = cHnm[n][m] + dt*cDHnm[n][m]
+	dgnm = cDGnm[n][m]
+	dhnm = cDHnm[n][m]
 	return gnm, hnm, dgnm, dhnm, err
 }
 
+// LoadWMMCOF loads the specified coefficients file.
+//
+// It populates the internal coefficient values representing G(n,m), H(n,m), DG(n,m), DH(n,m),
+// Epoch, COFName, and ValidDate.
+// If the passed filename is "", it loads the default (current) coefficients file.
+//
+// The default coefficients file is currently WMM2015v2.COF, valid from
+// 09/18/2018 until 12/31/2019.
 func LoadWMMCOF(fn string) {
 	var (
 		data []byte
@@ -79,14 +92,14 @@ func LoadWMMCOF(fn string) {
 		panic("bad WMM.COF header valid date")
 	}
 
-	Gnm = make([][]float64, MaxLegendreOrder+1)
-	Gnm[0] = []float64{0}
-	Hnm = make([][]float64, MaxLegendreOrder+1)
-	Hnm[0] = []float64{0}
-	DGnm = make([][]float64, MaxLegendreOrder+1)
-	DGnm[0] = []float64{0}
-	DHnm = make([][]float64, MaxLegendreOrder+1)
-	DHnm[0] = []float64{0}
+	cGnm = make([][]float64, MaxLegendreOrder+1)
+	cGnm[0] = []float64{0}
+	cHnm = make([][]float64, MaxLegendreOrder+1)
+	cHnm[0] = []float64{0}
+	cDGnm = make([][]float64, MaxLegendreOrder+1)
+	cDGnm[0] = []float64{0}
+	cDHnm = make([][]float64, MaxLegendreOrder+1)
+	cDHnm[0] = []float64{0}
 
 	// Read and parse testdata
 	curN := 0
@@ -102,22 +115,22 @@ func LoadWMMCOF(fn string) {
 			panic("bad m value in WMM.COF data file")
 		}
 		if n>curN {
-			Gnm[n] = make([]float64, n+1)
-			Hnm[n] = make([]float64, n+1)
-			DGnm[n] = make([]float64, n+1)
-			DHnm[n] = make([]float64, n+1)
+			cGnm[n] = make([]float64, n+1)
+			cHnm[n] = make([]float64, n+1)
+			cDGnm[n] = make([]float64, n+1)
+			cDHnm[n] = make([]float64, n+1)
 			curN = n
 		}
-		if Gnm[n][m], err = strconv.ParseFloat(s[2], 64); err != nil {
+		if cGnm[n][m], err = strconv.ParseFloat(s[2], 64); err != nil {
 			panic("bad Gnm value in WMM.COF data file")
 		}
-		if Hnm[n][m], err = strconv.ParseFloat(s[3], 64); err != nil {
+		if cHnm[n][m], err = strconv.ParseFloat(s[3], 64); err != nil {
 			panic("bad Hnm value in WMM.COF data file")
 		}
-		if DGnm[n][m], err = strconv.ParseFloat(s[4], 64); err != nil {
+		if cDGnm[n][m], err = strconv.ParseFloat(s[4], 64); err != nil {
 			panic("bad DGnm value in WMM.COF data file")
 		}
-		if DHnm[n][m], err = strconv.ParseFloat(s[5], 64); err != nil {
+		if cDHnm[n][m], err = strconv.ParseFloat(s[5], 64); err != nil {
 			panic("bad DHnm value in WMM.COF data file")
 		}
 	}
