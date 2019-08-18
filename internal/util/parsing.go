@@ -49,9 +49,15 @@ func ParseLatLng(inp string) (l float64, err error) {
 	if err!=nil {
 		return 0, err
 	}
+	if m<0 || m>=60 {
+		return 0, fmt.Errorf("minutes entry %s must be in the range [0,60)", ls[1])
+	}
 	s, err := strconv.ParseFloat(ls[2], 64)
 	if err!=nil {
 		return 0, err
+	}
+	if s<0 || s>=60 {
+		return 0, fmt.Errorf("seconds entry %s must be in the range [0,60)", ls[2])
 	}
 	return sgn*(float64(d)+(float64(m)+s/60)/60), nil
 }

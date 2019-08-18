@@ -49,12 +49,15 @@ func TestDMSBad(t *testing.T) {
 		"NW3.123", "-E12.567",
 		"0 0", "-150 59.2 59",
 		"0,,0,5", "0,1,0,0", "0, 2", "0,,1", "-1,-2,-3",
+		"5,61,0", "5,59,60",
 	}
 
 	for _, inp := range inps {
 		_, err := ParseLatLng(inp)
 		if err==nil {
-			t.Errorf("ParseLatLng incorrectly thought it could parse %s", inp)
+			t.Errorf("%sParseLatLng incorrectly thought it could parse %s%s", red, inp, reset)
+		} else {
+			t.Logf("%sParseLatLng correctly rejected %s%s", green, inp, reset)
 		}
 	}
 }
