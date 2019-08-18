@@ -56,6 +56,45 @@ func NewLocationGeodetic(latitude, longitude, height float64) (loc Location) {
 	}
 }
 
+// NewLocationMSL returns a Location given an input latitude, longitude, and height
+// above mean sea level.
+//
+// The latitude and longitude are as specified in the Geodetic Coordinate System,
+// and the height is the height above mean sea level, NOT above the WGS84 Reference Ellipsoid.
+//
+// Latitude and longitude are specified in decimal degrees and height in meters.
+func NewLocationMSL(latitude, longitude, height float64) (loc Location, err error) {
+	if len(egm96Grid)==0 {
+		loadEGM96Grid()
+	}
+
+	nLng := int((longitude-egm96X0)/egm96DX) // Grid x just below desired x
+	nLat := int((latitude-egm96Y0)/egm96DY) // Grid y just below desired y
+
+	if nLng < 0 || nLng > egm96XN {
+		return Location{}, fmt.Errorf("requested longitude %4.2f lies outside of EGM96 longitude range %4.1f to %4.1f",
+			longitude, egm96X0, egm96X1)
+	}
+	if nLat < 0 || nLat > egm96YN {
+		return Location{}, fmt.Errorf("requested latitude %4.2f lies outside of EGM96 latitude range %4.1f to %4.1f",
+			latitude, egm96Y0, egm96Y1)
+	}
+
+	x := (longitude-egm96X0)/egm96DX-float64(nLng)
+	y := (latitude-egm96Y0)/egm96DY-float64(nLat)
+	h00 := egm96Grid[nLat*egm96XN+nLng]
+	h10 := egm96Grid[nLat*egm96XN+nLng+1]
+	h01 := egm96Grid[(nLat+1)*egm96XN+nLng]
+	h11 := egm96Grid[(nLat+1)*egm96XN+nLng+1]
+
+
+	return Location{
+		latitude: latitude*Deg,
+		longitude: longitude*Deg,
+		height: height + ((1-x)*(1-y)*h00 + x*(1-y)*h10 + (1-x)*y*h01 + x*y*h11),
+	}, nil
+}
+
 // Equals returns whether the latitude, longitude and height of the input location
 // are equal to those of the caller.
 func (l Location) Equals(ll Location) bool {

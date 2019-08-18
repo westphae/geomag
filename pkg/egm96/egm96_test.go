@@ -41,6 +41,19 @@ func TestEGM96GridInterpolationAgainstKnown(t *testing.T) {
 	}
 }
 
+func TestNewLocationMSL(t *testing.T) {
+	lats := []float64{38, -12.25, 0, 38.628155, -14.621217, 46.874319, -23.617446, 38.625473, -0.466744}
+	lngs := []float64{270, 82.75, 0, 269.779155, 305.021114, 102.448729, 133.874712, 359.999500, 0.002300}
+	hts  := []float64{200, -1000, 99999, 12000, 3600, -50, 8800, 1200000, -1111}
+
+	for i:=0; i<len(lats); i++ {
+		l, _ := NewLocationMSL(lats[i],lngs[i],hts[i])
+		h, _ := l.HeightAboveMSL()
+		// 0.1 seems to be the error introduced by bi-linear interpolation rather than splines
+		testDiff("height", h, hts[i], eps, t)
+	}
+}
+
 func ExampleNearestEGM96GridPoint() {
 	p, _ := NewLocationGeodetic(-12.25,82.75,0).NearestEGM96GridPoint()
 	fmt.Printf("Lat: %4.2f, Lng: %4.2f, height: %5.3f", p.latitude/Deg, p.longitude/Deg, p.height)
