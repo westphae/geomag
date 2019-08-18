@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// ParseLatLng takes an input string in various forms, represent a latitude
+// ParseLatLng takes an input string in various forms, representing a latitude
 // or longitude, and returns the float representation.
 //
 // Possible formats:
@@ -29,7 +29,7 @@ func ParseLatLng(inp string) (l float64, err error) {
 	}
 
 	if ct:=strings.Count(inp, ","); ct!=0 && ct!=2 {
-		return 0, fmt.Errorf("incorrect number of fields in %s", inp)
+		return 0, fmt.Errorf("%s is not in the format D,M,S", inp)
 	}
 	inp = strings.ReplaceAll(inp, ",", " ")
 
@@ -60,4 +60,17 @@ func ParseLatLng(inp string) (l float64, err error) {
 		return 0, fmt.Errorf("seconds entry %s must be in the range [0,60)", ls[2])
 	}
 	return sgn*(float64(d)+(float64(m)+s/60)/60), nil
+}
+
+func ParseAltitude(inp string) (height float64, hae bool, err error) {
+	ii:=strings.LastIndex(inp, "E")
+	if ii>0 {
+		return 0, false, fmt.Errorf("%s prefix is invalid", inp[0:ii])
+	}
+	if ii==0 {
+		hae = true
+		inp = inp[1:len(inp)]
+	}
+	height, err = strconv.ParseFloat(inp, 64)
+	return
 }

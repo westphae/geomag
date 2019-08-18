@@ -50,6 +50,7 @@ func TestDMSBad(t *testing.T) {
 		"0 0", "-150 59.2 59",
 		"0,,0,5", "0,1,0,0", "0, 2", "0,,1", "-1,-2,-3",
 		"5,61,0", "5,59,60",
+		"ABC123",
 	}
 
 	for _, inp := range inps {
@@ -58,6 +59,58 @@ func TestDMSBad(t *testing.T) {
 			t.Errorf("%sParseLatLng incorrectly thought it could parse %s%s", red, inp, reset)
 		} else {
 			t.Logf("%sParseLatLng correctly rejected %s%s", green, inp, reset)
+		}
+	}
+}
+
+func TestAltitudeGood(t *testing.T) {
+	inps := []string{
+		"99.95",
+		"-123.45",
+		"E54.22",
+		"E-800.2",
+	}
+	outs := []float64{
+		99.95,
+		-123.45,
+		54.22,
+		-800.2,
+	}
+	outh := []bool{
+		false,
+		false,
+		true,
+		true,
+	}
+
+	for i, inp := range inps {
+		out, hae, err := ParseAltitude(inp)
+		if err!=nil {
+			t.Errorf("ParseLatLng got error %s", err)
+		}
+		if hae!=outh[i] {
+			t.Errorf("%sParseAltitude got hae wrong for %s%s", red, inp, reset)
+		} else {
+			t.Logf("%sParseAltitude got hae correct for %s%s", green, inp, reset)
+		}
+		testDiff(inp, out, outs[i], eps, t)
+	}
+}
+
+func TestAltitudeBad(t *testing.T) {
+	inps := []string{
+		"-E111.2",
+		"EE12",
+		"99E99",
+		"ABC123",
+	}
+
+	for _, inp := range inps {
+		_, _, err := ParseAltitude(inp)
+		if err==nil {
+			t.Errorf("%sParseAltitude incorrectly thought it could parse %s%s", red, inp, reset)
+		} else {
+			t.Logf("%sParseAltitude correctly rejected %s%s", green, inp, reset)
 		}
 	}
 }
