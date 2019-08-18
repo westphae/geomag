@@ -114,3 +114,49 @@ func TestAltitudeBad(t *testing.T) {
 		}
 	}
 }
+
+// YYYY.yyy
+// MM DD YYYY
+// MM/DD/YYYY
+func TestTimeGood(t *testing.T) {
+	inps := []string{
+		"1995.0",
+		"12/31/1995",
+		"12 31 1996",
+		"1 1 2004",
+		"7/2/2017",
+	}
+	outs := []float64{
+		1995.0,
+		1996-1.0/365,
+		1997-1.0/366,
+		2004.0,
+		2017.5-0.5/365,
+	}
+
+	for i, inp := range inps {
+		out, err := ParseTime(inp)
+		if err!=nil {
+			t.Errorf("ParseTime got error %s", err)
+		}
+		testDiff(inp, out, outs[i], eps, t)
+	}
+}
+
+func TestTimeBad(t *testing.T) {
+	inps := []string{
+		"Y2019",
+		"31 12 2005",
+		"0 1 1999",
+		"13/1/2000",
+	}
+
+	for _, inp := range inps {
+		_, err := ParseTime(inp)
+		if err==nil {
+			t.Errorf("%sParseTime incorrectly thought it could parse %s%s", red, inp, reset)
+		} else {
+			t.Logf("%sParseTime correctly rejected %s%s", green, inp, reset)
+		}
+	}
+}
