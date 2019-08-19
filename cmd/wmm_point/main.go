@@ -1,6 +1,6 @@
 // wmm_point estimates the strength and direction of Earth's main Magnetic field for a given point/area.
 //
-// Usage is wmm_point --cof_file=WMM2015v2.COF --spherical [latitude] [longitude] [altitude] [time]
+// Usage is wmm_point --cof_file=WMM2015v2.COF --spherical [latitude] [longitude] [altitude] [date]
 //
 // The World Magnetic Model (WMM) for 2015
 // is a model of Earth's main Magnetic field.  The WMM
@@ -71,21 +71,19 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	parsing "github.com/westphae/geomag/internal/util"
+	"github.com/westphae/geomag/pkg/egm96"
+	"github.com/westphae/geomag/pkg/wmm"
 	"os"
 	"strings"
+
+	"github.com/westphae/geomag/internal/util"
 )
 
 const (
-	usage = "wmm_point --cof_file=WMM2015v2.COF --spherical [latitude] [longitude] [altitude] [time]"
+	usage = "wmm_point --cof_file=WMM2015v2.COF --spherical [latitude] [longitude] [altitude] [date]"
 	cofUsage = "COF coefficients file to use, empty for the built-in one"
 	sphericalUsage = "Output spherical values instead of ellipsoidal"
 	lngErr = "Error: Degree input is outside legal range. The legal range is from -180 to 360."
-	htErr = "Illegal Format, please re-enter as '(-)HHH.hhh'"
-	htWarn = "Warning: The value you have entered of -100000.000000 km for the elevation is " +
-		"outside of the recommended range. Elevations above -10.0 km are recommended for accurate results."
-	timeWarn = "WARNING - TIME EXTENDS BEYOND INTENDED USAGE RANGE. CONTACT NCEI FOR PRODUCT UPDATES. " +
-		"VALID RANGE = 2015 - 2020"
 	fieldWarn = "Warning: The Horizontal Field strength at this location is only 0.000000. " +
 		"Compass readings have VERY LARGE uncertainties in areas where where H is smaller than 1000 nT"
 )
@@ -97,18 +95,22 @@ var prompt = map[string]string{
 		"For example: -100.5 or -100, 30, 0 for 100.5 degrees west.",
 	"altitude": "Please enter height above mean sea level (in kilometers). " +
 		"[For height above WGS-84 Ellipsoid prefix E, for example (E20.1)].",
-	"time": "Please enter the decimal year or calendar date (YYYY.yyy, MM DD YYYY or MM/DD/YYYY)",
+	"date": "Please enter the decimal year or calendar date (YYYY.yyy, MM DD YYYY or MM/DD/YYYY)",
 }
 
 var (
-	cofFile   string
-	spherical bool
-	latitude  float64
-	longitude float64
-	altitude    float64
-	hae       bool
-	time      float64
-	ErrHelp   error
+	cofFile    string
+	spherical  bool
+	latitude   float64
+	longitude  float64
+	altitude   float64
+	hae        bool
+	dYear       float64
+	ErrHelp    error
+	err        error
+	loc        egm96.Location
+	x, y, z    float64
+	dx, dy, dz float64
 )
 
 func init() {
@@ -126,16 +128,111 @@ func main() {
 
 	if flag.NArg() == 0 {
 		userInput()
-	} else if flag.NArg() != 4 {
-		fmt.Fprintf(os.Stderr, "You must specify a latitude, longitude, altitude and time in that order")
+	} else if flag.NArg() == 4 {
+		if latitude, err = parsing.ParseLatLng(flag.Arg(0)); err!=nil {
+			_, _ = fmt.Fprintln(os.Stderr, err)
+			return
+		}
+		if longitude, err = parsing.ParseLatLng(flag.Arg(1)); err!=nil {
+			_, _ = fmt.Fprintln(os.Stderr, err)
+			return
+		}
+		if altitude, hae, err = parsing.ParseAltitude(flag.Arg(2)); err!=nil {
+			_, _ = fmt.Fprintln(os.Stderr, err)
+			return
+		}
+		if dYear, err = parsing.ParseTime(flag.Arg(3)); err!=nil {
+			_, _ = fmt.Fprintln(os.Stderr, err)
+			return
+		}
+	} else {
+		_, _ = fmt.Fprintf(os.Stderr, "You must specify a latitude, longitude, altitude and date in that order")
 		return
 	}
+	for longitude < 0 {
+		longitude += 360
+	}
+	if longitude >= 360 {
+		_, _ = fmt.Fprintln(os.Stderr, lngErr)
+	}
+	altitude *= 1000 // Convert to meters
 
-	fmt.Printf("Coefficient file: %s, spherical: %v\n", cofFile, spherical)
-	fmt.Printf("Latitude: %6.3f", latitude)
-	fmt.Printf("Longitude: %6.3f", longitude)
-	fmt.Printf("Altitude: %6.3f", altitude)
-	fmt.Printf("Time: %6.3f", time)
+	if hae {
+		loc = egm96.NewLocationGeodetic(latitude, longitude, altitude)
+	} else {
+		loc, err = egm96.NewLocationMSL(latitude, longitude, altitude)
+		if err != nil {
+			fmt.Printf("Error making location: %s\n", err)
+		}
+	}
+	mf, err := wmm.CalculateWMMMagneticField(
+		loc,
+		wmm.DecimalYear(dYear).ToTime(),
+		)
+
+	//  Results For
+	fmt.Println(" Results For")
+	fmt.Println()
+	qualifier := "N"
+	quantity := latitude
+	if latitude<0 {
+		qualifier = "S"
+		quantity = -quantity
+	}
+	fmt.Printf("Latitude:\t%4.2f%s\n", quantity, qualifier)
+
+	qualifier = "E"
+	quantity = longitude
+	if longitude>=180 {
+		qualifier = "W"
+		quantity = 360-longitude
+	}
+	fmt.Printf("Longitude:\t%4.2f%s\n", quantity, qualifier)
+
+	qualifier = "mean sea level"
+	relationship := "above"
+	quantity = altitude/1000
+	if altitude<0 {
+		relationship = "below"
+		quantity = -altitude/1000
+	}
+	if hae {
+		qualifier = "ellipsoid"
+	}
+	fmt.Printf("Altitude:\t%6.3f kilometers %s %s\n", quantity, relationship, qualifier)
+
+	fmt.Printf("Date:\t\t%5.1f\n", dYear)
+
+	qualifier = ""
+	if spherical {
+		qualifier = "(Spherical)"
+	}
+	fmt.Println()
+
+	if err != nil {
+		fmt.Printf("Warning: %s\n\n", err)
+	}
+
+	if spherical {
+		x, y, z, dx, dy, dz = mf.Spherical()
+	} else {
+		x, y, z, dx, dy, dz = mf.Ellipsoidal()
+	}
+
+	dD, dM, dS := egm96.DegreesToDMS(mf.D())
+	ddD, ddM, ddS := egm96.DegreesToDMS(mf.DD())
+	iD, iM, iS := egm96.DegreesToDMS(mf.I())
+	diD, diM, diS := egm96.DegreesToDMS(mf.DI())
+	fmt.Println("       Main Field   Secular Change")
+	fmt.Printf("F    = %7.1f nT   %6.1f nT/yr\n", mf.F(), mf.DF())
+	fmt.Printf("X    = %7.1f nT   %6.1f nT/yr %s\n", x, dx, qualifier)
+	fmt.Printf("Y    = %7.1f nT   %6.1f nT/yr %s\n", y, dy, qualifier)
+	fmt.Printf("Z    = %7.1f nT   %6.1f nT/yr %s\n", z, dz, qualifier)
+	if !spherical {
+		fmt.Printf("H    = %7.1f nT   %6.1f nT/yr\n", mf.H(), mf.DH())
+		fmt.Printf("Decl =    %2.0fº %2.0f'        %3.1f'/yr\n", dD, dM+dS/60, ddD*60+ddM+ddS/60)
+		fmt.Printf("Incl =    %2.0fº %2.0f'        %3.1f'/yr\n", iD, iM+iS/60, diD*60+diM+diS/60)
+	}
 }
 
 func userInput() {
@@ -185,12 +282,12 @@ func userInput() {
 
 	err = fmt.Errorf("")
 	for err!=nil {
-		input = readUserInput(prompt["time"])
+		input = readUserInput(prompt["date"])
 		if input == "q" {
 			fmt.Println("Goodbye")
 			os.Exit(1)
 		}
-		time, err = parsing.ParseTime(input)
+		dYear, err = parsing.ParseTime(input)
 		if err!=nil {
 			fmt.Println(err)
 		}
