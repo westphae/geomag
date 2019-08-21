@@ -214,7 +214,7 @@ func CalculateWMMMagneticField(loc egm96.Location, t time.Time) (field MagneticF
 					q *= math.Sqrt(2/polynomial.FactorialRatioFloat(n+m, n-m))
 				}
 				dp := nn*math.Tan(phi)*p - (nn-mf)/cosPhi*q
-				g, h, dg, dh, err = GetWMMCoefficients(n, m, Epoch.ToTime())
+				g, h, dg, dh, _ = GetWMMCoefficients(n, m, Epoch.ToTime())
 				// if longitude varies, recalculate from here
 				sinMLambda := math.Sin(mf*lambda)
 				cosMLambda := math.Cos(mf*lambda)

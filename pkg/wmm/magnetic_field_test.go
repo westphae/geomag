@@ -79,14 +79,14 @@ func TestMagneticFieldFromPaperDetail(t *testing.T) {
 	testDiff("Ydot", dyE, 6.9411521726, epsM, t)
 	testDiff("Zdot", dzE, 86.2435641169, epsM, t)
 
-	testDiff("F", MagneticField(mag).F(), 52611.1423211683, epsM, t)
-	testDiff("H", MagneticField(mag).H(), 15862.0423159539, epsM, t)
-	testDiff("D", MagneticField(mag).D(), 1.2043399870/egm96.Deg, epsM, t)
-	testDiff("I", MagneticField(mag).I(), -1.2645351837/egm96.Deg, epsM, t)
-	testDiff("DF", MagneticField(mag).DF(), -77.2340297896, epsM, t)
-	testDiff("DH", MagneticField(mag).DH(), 16.5720479716, epsM, t)
-	testDiff("DD", MagneticField(mag).DD(), -0.0015009297/egm96.Deg, epsM, t)
-	testDiff("DI", MagneticField(mag).DI(), 0.0007945653/egm96.Deg, epsM, t)
+	testDiff("F", mag.F(), 52611.1423211683, epsM, t)
+	testDiff("H", mag.H(), 15862.0423159539, epsM, t)
+	testDiff("D", mag.D(), 1.2043399870/egm96.Deg, epsM, t)
+	testDiff("I", mag.I(), -1.2645351837/egm96.Deg, epsM, t)
+	testDiff("DF", mag.DF(), -77.2340297896, epsM, t)
+	testDiff("DH", mag.DH(), 16.5720479716, epsM, t)
+	testDiff("DD", mag.DD(), -0.0015009297/egm96.Deg, epsM, t)
+	testDiff("DI", mag.DI(), 0.0007945653/egm96.Deg, epsM, t)
 }
 
 func TestAllTestValuesFromPaper(t *testing.T) {
