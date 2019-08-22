@@ -28,7 +28,7 @@ func testDiff(name string, actual, expected float64, eps float64, t *testing.T) 
 
 func TestMagneticFieldFromPaperDetail(t *testing.T) {
 	// Test values in paper are only for original version of WMM-2015
-	LoadWMMCOF("testdata/WMM2015v1.COF")
+	_ = LoadWMMCOF("testdata/WMM2015v1.COF")
 	tt := DecimalYear(2017.5)
 	loc := egm96.NewLocationGeodetic(-80,240,100e3)
 
@@ -105,7 +105,7 @@ func TestAllTestValuesFromPaper(t *testing.T) {
 		err                    error
 	)
 
-	LoadWMMCOF("testdata/WMM2015v2.COF")
+	_ = LoadWMMCOF("testdata/WMM2015v2.COF")
 
 	data, err = ioutil.ReadFile("testdata/WMM2015v2TestValues.txt")
 	scanner := bufio.NewScanner(bytes.NewReader(data))

@@ -173,7 +173,7 @@ var (
 )
 
 func init() {
-	LoadWMMCOF("")
+	_ = LoadWMMCOF("")
 }
 
 // CalculateWMMMagneticField returns the magnetic field at the input location

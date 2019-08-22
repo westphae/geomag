@@ -31,7 +31,7 @@ var (
 // of validity of the loaded coefficients file, it will return an error.
 func GetWMMCoefficients(n, m int, t time.Time) (gnm, hnm, dgnm, dhnm float64, err error) {
 	if Epoch==0 {
-		LoadWMMCOF("")
+		_ = LoadWMMCOF("")
 	}
 	if n<0 || n>MaxLegendreOrder || m<0 || m>MaxLegendreOrder {
 		return 0, 0, 0, 0, fmt.Errorf("n, m = (%d,%d) must be between 0 and %d",
@@ -60,10 +60,9 @@ func GetWMMCoefficients(n, m int, t time.Time) (gnm, hnm, dgnm, dhnm float64, er
 //
 // The default coefficients file is currently WMM2015v2.COF, valid from
 // 09/18/2018 until 12/31/2019.
-func LoadWMMCOF(fn string) {
+func LoadWMMCOF(fn string) (err error) {
 	var (
 		data []byte
-		err   error
 		epoch float64
 		n, m  int
 	)
@@ -74,22 +73,22 @@ func LoadWMMCOF(fn string) {
 		data, err = ioutil.ReadFile(fn)
 	}
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	scanner := bufio.NewScanner(bytes.NewReader(data))
 	// Read and parse header
 	if !scanner.Scan() {
-		panic("Could not read header line from WMM coefficient file")
+		return fmt.Errorf("Could not read header line in WMM coefficient file %s", fn)
 	}
 	dat := strings.Fields(scanner.Text())
 	if epoch, err = strconv.ParseFloat(dat[0], 64); err != nil {
-		panic("bad WMM.COF header epoch date")
+		return fmt.Errorf("bad header epoch date in WMM coefficient file %s", fn)
 	}
 	Epoch = DecimalYear(epoch)
 	COFName = dat[1]
 	if ValidDate, err = time.Parse("01/02/2006", dat[2]); err != nil {
-		panic("bad WMM.COF header valid date")
+		return fmt.Errorf("bad header valid date in WMM coefficient file %s", fn)
 	}
 
 	cGnm = make([][]float64, MaxLegendreOrder+1)
@@ -109,10 +108,10 @@ func LoadWMMCOF(fn string) {
 			continue
 		}
 		if n, err = strconv.Atoi(s[0]); err!=nil {
-			panic("bad n value in WMM.COF data file")
+			return fmt.Errorf("bad n value in WMM coefficient file %s", fn)
 		}
 		if m, err = strconv.Atoi(s[1]); err!=nil {
-			panic("bad m value in WMM.COF data file")
+			return fmt.Errorf("bad m value in WMM coefficient file %s", fn)
 		}
 		if n>curN {
 			cGnm[n] = make([]float64, n+1)
@@ -122,20 +121,21 @@ func LoadWMMCOF(fn string) {
 			curN = n
 		}
 		if cGnm[n][m], err = strconv.ParseFloat(s[2], 64); err != nil {
-			panic("bad Gnm value in WMM.COF data file")
+			return fmt.Errorf("bad Gnm value in WMM coefficient file %s", fn)
 		}
 		if cHnm[n][m], err = strconv.ParseFloat(s[3], 64); err != nil {
-			panic("bad Hnm value in WMM.COF data file")
+			return fmt.Errorf("bad Hnm value in WMM coefficient file %s", fn)
 		}
 		if cDGnm[n][m], err = strconv.ParseFloat(s[4], 64); err != nil {
-			panic("bad DGnm value in WMM.COF data file")
+			return fmt.Errorf("bad DGnm value in WMM coefficient file %s", fn)
 		}
 		if cDHnm[n][m], err = strconv.ParseFloat(s[5], 64); err != nil {
-			panic("bad DHnm value in WMM.COF data file")
+			return fmt.Errorf("bad DHnm value in WMM coefficient file %s", fn)
 		}
 	}
 
 	if err := scanner.Err(); err != nil {
-		panic(err)
+		return err
 	}
+	return nil
 }
