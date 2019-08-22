@@ -64,6 +64,8 @@
 // Z       =         40301.1 +/- 165.0 nT           Zdot = -134.3  nT/yr
 // Decl    =      -1 Deg -59 Min  (WEST) +/- 20 Min Ddot = -5.2    Min/yr
 // Incl    =      59 Deg   9 Min  (DOWN) +/- 13 Min Idot = -4.6    Min/yr
+//
+// Grid variation =     -50 Deg -59 Min
 package main
 
 import (
@@ -71,12 +73,12 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/westphae/geomag/pkg/egm96"
-	"github.com/westphae/geomag/pkg/wmm"
 	"os"
 	"strings"
 
 	"github.com/westphae/geomag/internal/util"
+	"github.com/westphae/geomag/pkg/egm96"
+	"github.com/westphae/geomag/pkg/wmm"
 )
 
 const (
@@ -92,10 +94,10 @@ var prompt = map[string]string{
 	"latitude": "Please enter latitude North Latitude positive. " +
 		"For example: 30, 30, 30 (D,M,S) or 30.508 (Decimal Degrees) (both are north). ",
 	"longitude": "Please enter longitude East longitude positive, West negative. " +
-		"For example: -100.5 or -100, 30, 0 for 100.5 degrees west.",
+		"For example: -100.5 or -100, 30, 0 for 100.5 degrees west. ",
 	"altitude": "Please enter height above mean sea level (in kilometers). " +
-		"[For height above WGS-84 Ellipsoid prefix E, for example (E20.1)].",
-	"date": "Please enter the decimal year or calendar date (YYYY.yyy, MM DD YYYY or MM/DD/YYYY)",
+		"[For height above WGS-84 Ellipsoid prefix E, for example (E20.1)]. ",
+	"date": "Please enter the decimal year or calendar date (YYYY.yyy, MM DD YYYY or MM/DD/YYYY) ",
 }
 
 var (
@@ -105,7 +107,7 @@ var (
 	longitude  float64
 	altitude   float64
 	hae        bool
-	dYear       float64
+	dYear      float64
 	ErrHelp    error
 	err        error
 	loc        egm96.Location
@@ -125,6 +127,12 @@ func init() {
 
 func main() {
 	flag.Parse()
+
+	if cofFile!="" {
+		wmm.LoadWMMCOF(cofFile)
+	}
+	fmt.Printf("COF File: %v, Epoch: %v, Valid Date: %d/%d/%d\n", wmm.COFName, wmm.Epoch,
+		wmm.ValidDate.Month(), wmm.ValidDate.Day(), wmm.ValidDate.Year())
 
 	if flag.NArg() == 0 {
 		userInput()
@@ -170,34 +178,34 @@ func main() {
 		wmm.DecimalYear(dYear).ToTime(),
 		)
 
-	//  Results For
-	fmt.Println(" Results For")
+	fmt.Println("Results For")
 	fmt.Println()
+	lat, lng, hh := loc.Geodetic()
 	qualifier := "N"
-	quantity := latitude
-	if latitude<0 {
+	quantity := lat/egm96.Deg
+	if quantity<0 {
 		qualifier = "S"
 		quantity = -quantity
 	}
 	fmt.Printf("Latitude:\t%4.2f%s\n", quantity, qualifier)
 
 	qualifier = "E"
-	quantity = longitude
-	if longitude>=180 {
+	quantity = lng/egm96.Deg
+	if quantity>=180 {
 		qualifier = "W"
-		quantity = 360-longitude
+		quantity = 360-quantity
 	}
 	fmt.Printf("Longitude:\t%4.2f%s\n", quantity, qualifier)
 
 	qualifier = "mean sea level"
 	relationship := "above"
-	quantity = altitude/1000
-	if altitude<0 {
+	quantity = hh/1000
+	if quantity<0 {
 		relationship = "below"
-		quantity = -altitude/1000
+		quantity = -quantity
 	}
 	if hae {
-		qualifier = "ellipsoid"
+		qualifier = "the WGS-84 ellipsoid"
 	}
 	fmt.Printf("Altitude:\t%6.3f kilometers %s %s\n", quantity, relationship, qualifier)
 
@@ -223,15 +231,20 @@ func main() {
 	ddD, ddM, ddS := egm96.DegreesToDMS(mf.DD())
 	iD, iM, iS := egm96.DegreesToDMS(mf.I())
 	diD, diM, diS := egm96.DegreesToDMS(mf.DI())
+	gvD, gvM, gvS := egm96.DegreesToDMS(mf.GV(loc))
 	fmt.Println("       Main Field   Secular Change")
 	fmt.Printf("F    = %7.1f nT   %6.1f nT/yr\n", mf.F(), mf.DF())
+	if !spherical {
+		fmt.Printf("H    = %7.1f nT   %6.1f nT/yr\n", mf.H(), mf.DH())
+	}
 	fmt.Printf("X    = %7.1f nT   %6.1f nT/yr %s\n", x, dx, qualifier)
 	fmt.Printf("Y    = %7.1f nT   %6.1f nT/yr %s\n", y, dy, qualifier)
 	fmt.Printf("Z    = %7.1f nT   %6.1f nT/yr %s\n", z, dz, qualifier)
 	if !spherical {
-		fmt.Printf("H    = %7.1f nT   %6.1f nT/yr\n", mf.H(), mf.DH())
 		fmt.Printf("Decl =    %2.0fº %2.0f'        %3.1f'/yr\n", dD, dM+dS/60, ddD*60+ddM+ddS/60)
 		fmt.Printf("Incl =    %2.0fº %2.0f'        %3.1f'/yr\n", iD, iM+iS/60, diD*60+diM+diS/60)
+		fmt.Println()
+		fmt.Printf("Grid Variation =  %2.0fº %2.0f'\n", gvD, gvM+gvS/60)
 	}
 }
 
