@@ -3,11 +3,12 @@ package wmm
 import (
 	"bufio"
 	"bytes"
-	"github.com/westphae/geomag/pkg/egm96"
 	"io/ioutil"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/westphae/geomag/pkg/egm96"
 )
 
 const (

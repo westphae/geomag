@@ -172,6 +172,10 @@ var (
 	curField MagneticField
 )
 
+func init() {
+	LoadWMMCOF("")
+}
+
 // CalculateWMMMagneticField returns the magnetic field at the input location
 // at the input time.
 //
@@ -183,7 +187,7 @@ var (
 // cases.  The error is informational.
 //
 // This function caches the WMM coefficients for computational speed.
-// TODO: implement this and check the description is correct.
+// TODO: implement this and check the description is correct. Use benchmarking
 // It also caches intermediate computational steps for speed in looping over
 // locations.
 // The innermost loop should be over time, followed in order by height,
@@ -227,7 +231,7 @@ func CalculateWMMMagneticField(loc egm96.Location, t time.Time) (field MagneticF
 			}
 		}
 	}
-	dt := float64(TimeToDecimalYears(t)- Epoch)
+	dt := float64(TimeToDecimalYears(t)-Epoch)
 	field.l = loc
 	field.x = curField.x + dt*curField.dx
 	field.y = curField.y + dt*curField.dy
