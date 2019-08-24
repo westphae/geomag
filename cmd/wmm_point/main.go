@@ -1,12 +1,14 @@
 // wmm_point estimates the strength and direction of Earth's main Magnetic field for a given point/area.
 //
-// Usage is wmm_point --cof_file=WMM2015v2.COF --spherical [latitude] [longitude] [altitude] [date]
+// Usage is
+//  wmm_point --cof_file=WMM2015v2.COF --spherical [latitude] [longitude] [altitude] [date]
 //
 // The World Magnetic Model (WMM) for 2015
 // is a model of Earth's main Magnetic field.  The WMM
 // is recomputed every five (5) years, in years divisible by
-// five (i.e. 2010, 2015).  See the contact information below
-// to obtain more information on the WMM and associated software.
+// five (i.e. 2010, 2015).  
+//
+// Information on the model is available at https://www.ngdc.noaa.gov/geomag/WMM/DoDWMM.shtml
 //
 // Input required is the location in geodetic latitude and
 // longitude (positive for northern latitudes and eastern
@@ -28,7 +30,7 @@
 // of the horizontal field.  For more information see the WMM Technical
 // Report.
 //
-//  It is very important to note that a  degree and  order 12 model,
+// It is very important to note that a  degree and  order 12 model,
 // such as WMM, describes only the long  wavelength spatial Magnetic
 // fluctuations due to  Earth's core.  Not included in the WMM series
 // models are intermediate and short wavelength spatial fluctuations
@@ -50,22 +52,22 @@
 //
 // Sample output:
 //  Results For
-//
-// Latitude        30.00N
-// Longitude       88.51W
-// Altitude:       0.01 Kilometers above mean sea level
-// Date:           2019.5
-//
-//                Main Field                      Secular Change
-// F       =         46944.2 +/- 152.0 nT           Fdot = -118.8  nT/yr
-// H       =         24074.5 +/- 133.0 nT           Hdot =  -6.8   nT/yr
-// X       =         24060.2 +/- 138.0 nT           Xdot =  -8.0   nT/yr
-// Y       =          -831.5 +/-  89.0 nT           Ydot = -36.3   nT/yr
-// Z       =         40301.1 +/- 165.0 nT           Zdot = -134.3  nT/yr
-// Decl    =      -1 Deg -59 Min  (WEST) +/- 20 Min Ddot = -5.2    Min/yr
-// Incl    =      59 Deg   9 Min  (DOWN) +/- 13 Min Idot = -4.6    Min/yr
-//
-// Grid variation =     -50 Deg -59 Min
+//  
+//  Latitude:       30.00N
+//  Longitude:      88.51W
+//  Altitude:        0.010 kilometers above mean sea level
+//  Date:           2019.5
+//  
+//         Main Field             Secular Change
+//         F    =  46944.3 nT ± 152.0 nT  -118.8 nT/yr
+//         H    =  24074.6 nT ± 133.0 nT    -6.8 nT/yr
+//         X    =  24060.2 nT ± 138.0 nT    -8.0 nT/yr
+//         Y    =   -831.0 nT ±  89.0 nT   -36.3 nT/yr
+//         Z    =  40301.2 nT ± 165.0 nT  -134.3 nT/yr
+//         Decl =     -1º 59' ± 19'         -5.2'/yr
+//         Incl =     59º  9' ± 13'         -4.6'/yr
+//  
+//         Grid Variation =  -1º 59'
 package main
 
 import (
@@ -200,17 +202,18 @@ func main() {
 	}
 	fmt.Printf("Longitude:\t%4.2f%s\n", quantity, qualifier)
 
-	qualifier = "mean sea level"
 	relationship := "above"
-	quantity = hh/1000
+	quantity = hh
+	qualifier = "the WGS-84 ellipsoid"
+	if !hae {
+		quantity, _ = loc.HeightAboveMSL()
+		qualifier = "mean sea level"
+	}
 	if quantity<0 {
 		relationship = "below"
 		quantity = -quantity
 	}
-	if hae {
-		qualifier = "the WGS-84 ellipsoid"
-	}
-	fmt.Printf("Altitude:\t%6.3f kilometers %s %s\n", quantity, relationship, qualifier)
+	fmt.Printf("Altitude:\t%6.3f kilometers %s %s\n", quantity/1000, relationship, qualifier)
 
 	fmt.Printf("Date:\t\t%5.1f\n", dYear)
 
@@ -231,21 +234,20 @@ func main() {
 	}
 
 	dD, dM, dS := egm96.DegreesToDMS(mf.D())
-	ddD, ddM, ddS := egm96.DegreesToDMS(mf.DD())
 	iD, iM, iS := egm96.DegreesToDMS(mf.I())
-	diD, diM, diS := egm96.DegreesToDMS(mf.DI())
 	gvD, gvM, gvS := egm96.DegreesToDMS(mf.GV(loc))
-	fmt.Println("       Main Field   Secular Change")
-	fmt.Printf("F    = %7.1f nT   %6.1f nT/yr\n", mf.F(), mf.DF())
+	fmt.Println("       Main Field             Secular Change")
+//  F       =         46944.2 +/- 152.0 nT           Fdot = -118.8  nT/yr
+	fmt.Printf("F    = %8.1f nT ± %5.1f nT  %6.1f nT/yr\n", mf.F(), mf.ErrF(), mf.DF())
 	if !spherical {
-		fmt.Printf("H    = %7.1f nT   %6.1f nT/yr\n", mf.H(), mf.DH())
+		fmt.Printf("H    = %8.1f nT ± %5.1f nT  %6.1f nT/yr\n", mf.H(), mf.ErrH(), mf.DH())
 	}
-	fmt.Printf("X    = %7.1f nT   %6.1f nT/yr %s\n", x, dx, qualifier)
-	fmt.Printf("Y    = %7.1f nT   %6.1f nT/yr %s\n", y, dy, qualifier)
-	fmt.Printf("Z    = %7.1f nT   %6.1f nT/yr %s\n", z, dz, qualifier)
+	fmt.Printf("X    = %8.1f nT ± %5.1f nT  %6.1f nT/yr %s\n", x, mf.ErrX(), dx, qualifier)
+	fmt.Printf("Y    = %8.1f nT ± %5.1f nT  %6.1f nT/yr %s\n", y, mf.ErrY(), dy, qualifier)
+	fmt.Printf("Z    = %8.1f nT ± %5.1f nT  %6.1f nT/yr %s\n", z, mf.ErrZ(), dz, qualifier)
 	if !spherical {
-		fmt.Printf("Decl =    %2.0fº %2.0f'        %3.1f'/yr\n", dD, dM+dS/60, ddD*60+ddM+ddS/60)
-		fmt.Printf("Incl =    %2.0fº %2.0f'        %3.1f'/yr\n", iD, iM+iS/60, diD*60+diM+diS/60)
+		fmt.Printf("Decl =    %3.0fº %2.0f' ± %2.0f'         %4.1f'/yr\n", dD, dM+dS/60, mf.ErrD()*60, mf.DD()*60)
+		fmt.Printf("Incl =    %3.0fº %2.0f' ± %2.0f'         %4.1f'/yr\n", iD, iM+iS/60, mf.ErrI()*60, mf.DI()*60)
 		fmt.Println()
 		fmt.Printf("Grid Variation =  %2.0fº %2.0f'\n", gvD, gvM+gvS/60)
 	}
