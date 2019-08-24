@@ -2,6 +2,7 @@
 geomag is an implementation in Go of the NOAA World Magnetic Model.
 
 The World Magnetic Model home is at https://www.ngdc.noaa.gov/geomag/WMM/DoDWMM.shtml.
+
 The coefficients for 2015-2020 can be downloaded at https://www.ngdc.noaa.gov/geomag/WMM/data/WMM2015/WMM2015v2COF.zip
 
 ## Commands
@@ -9,7 +10,7 @@ geomag provides two command line programs, modeled after the command line progra
 
 `wmm_point` calculates magnetic field values for a single location and time:
 ```
-wmm_point N30 W88.51 0.01 2019.5
+> wmm_point N30 W88.51 0.01 2019.5
 
 Results For
 
@@ -32,8 +33,8 @@ Date:           2019.5
 
 `wmm_grid` is coming soon.  It will calculate magnetic field values for a grid of locations and/or times.
 
-## Libraries
-Two libraries are provided by this package:
+## Packages
+Two packages are provided by this library:
 
 ### egm96
 Package egm96 provides a representation of the 1996 Earth Gravitational Model (EGM96),
