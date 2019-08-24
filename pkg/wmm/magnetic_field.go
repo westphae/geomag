@@ -21,7 +21,17 @@ import (
 	"github.com/westphae/geomag/pkg/polynomial"
 )
 
-const AGeo = 6371200 // Geomagnetic Reference Radius
+const (
+	AGeo  = 6371200 // Geomagnetic Reference Radius
+	errX  = 138     // WMM global average X error, nT
+	errY  = 89      // WMM global average Y error, nT
+	errZ  = 165     // WMM global average Z error, nT
+	errH  = 133     // WMM global average H error, nT
+	errF  = 152     // WMM global average F error, nT
+	errI  = 0.22    // WMM global average I error, º
+	errDA = 0.23    // WMM rough global average D error away from poles, º
+	errDB = 5430    // WMM average H uncertainty scale near the poles, nT
+)
 
 // MagneticField represents a geomagnetic field and its rate of change.
 type MagneticField struct {
@@ -147,7 +157,7 @@ func (m MagneticField) DF() (f float64) {
 func (m MagneticField) DI() (f float64) {
 	f = m.F()
 	_, _, z, _, _, dz := m.Ellipsoidal()
-	return (m.H()*dz - m.DH()*z)/(f*f)/ egm96.Deg
+	return (m.H()*dz - m.DH()*z)/(f*f) / egm96.Deg
 }
 
 // DD returns the rate of change of the Declination of the magnetic field
@@ -157,7 +167,7 @@ func (m MagneticField) DI() (f float64) {
 func (m MagneticField) DD() (f float64) {
 	f = m.H()
 	x, y, _, dx, dy, _ := m.Ellipsoidal()
-	return (x*dy - dx*y)/(f*f)/ egm96.Deg
+	return (x*dy - dx*y)/(f*f) / egm96.Deg
 }
 
 // DGV returns the rate of change of the Grid Variation of the magnetic field.
@@ -165,6 +175,58 @@ func (m MagneticField) DD() (f float64) {
 // The return value is in degrees/yr.
 func (m MagneticField) DGV() (f float64) {
 	return m.DD()
+}
+
+// ErrX returns the uncertainty in the X component of the magnetic field.
+//
+// The WMM specifies this uncertainty as an average over the global surface.
+func (m MagneticField) ErrX() (f float64) {
+	return errX
+}
+
+// ErrY returns the uncertainty in the Y component of the magnetic field.
+//
+// The WMM specifies this uncertainty as an average over the global surface.
+func (m MagneticField) ErrY() (f float64) {
+	return errY
+}
+
+// ErrZ returns the uncertainty in the Z component of the magnetic field.
+//
+// The WMM specifies this uncertainty as an average over the global surface.
+func (m MagneticField) ErrZ() (f float64) {
+	return errZ
+}
+
+// ErrF returns the uncertainty in the total magnetic field F.
+//
+// The WMM specifies this uncertainty as an average over the global surface.
+func (m MagneticField) ErrF() (f float64) {
+	return errF
+}
+
+// ErrH returns the uncertainty in the horizontal component H of the magnetic field.
+//
+// The WMM specifies this uncertainty as an average over the global surface.
+func (m MagneticField) ErrH() (f float64) {
+	return errH
+}
+
+// ErrI returns the uncertainty in the inclination I of the magnetic field.
+//
+// The WMM specifies this uncertainty as an average over the global surface.
+func (m MagneticField) ErrI() (f float64) {
+	return errI
+}
+
+// ErrD returns the uncertainty in the Declination of the magnetic field at the given location.
+//
+// All other reported model uncertainties are given as the surface average.
+// Because the H field can be close to zero near the poles,
+// the D uncertainty can become very large and must be reported by location.
+func (m MagneticField) ErrD() (f float64) {
+	h := m.H()
+	return math.Sqrt(errDA*errDA + errDB*errDB/(h*h))
 }
 
 var (
