@@ -90,7 +90,7 @@ func TestMagneticFieldFromPaperDetail(t *testing.T) {
 	testDiff("DI", mag.DI(), 0.0007945653/egm96.Deg, epsM, t)
 }
 
-func TestAllTestValuesFromPaper(t *testing.T) {
+func TestAll2015v2TestValuesFromPaper(t *testing.T) {
 	var (
 		date                   DecimalYear
 		height                 float64
@@ -199,6 +199,139 @@ func TestAllTestValuesFromPaper(t *testing.T) {
 			panic(err)
 		}
 		testDiff("Ddot", MagneticField(mag).DD(), ddot, 0.005, t)
+	}
+
+	if err := scanner.Err(); err != nil {
+		panic(err)
+	}
+
+}
+
+func TestAll2020TestValuesFromPaper(t *testing.T) {
+	var (
+		date                   DecimalYear
+		height                 float64
+		lat, lon               float64
+		x, y, z                float64
+		h, f, i, d             float64
+		xdot, ydot, zdot       float64
+		hdot, fdot, idot, ddot float64
+		data                   []byte
+		dat                    []string
+		err                    error
+	)
+
+	_ = LoadWMMCOF("testdata/WMM2020.COF")
+
+	data, err = ioutil.ReadFile("testdata/WMM2020_TEST_VALUES.txt")
+	scanner := bufio.NewScanner(bytes.NewReader(data))
+	// Read and parse header
+	if !scanner.Scan() {
+		panic(err)
+	}
+	for scanner.Scan() {
+		// Skip the header lines
+		if scanner.Text()[0]=='#' {
+			continue
+		}
+
+		dat = strings.Fields(scanner.Text())
+
+		dd, err := strconv.ParseFloat(dat[0], 64)
+		if err != nil {
+			panic(err)
+		}
+		date = DecimalYear(dd)
+
+		if dd, err = strconv.ParseFloat(dat[1], 64); err != nil {
+			panic(err)
+		}
+		height = dd*1000
+
+		if dd, err = strconv.ParseFloat(dat[2], 64); err != nil {
+			panic(err)
+		}
+		lat = dd
+
+		if dd, err = strconv.ParseFloat(dat[3], 64); err != nil {
+			panic(err)
+		}
+		lon = dd
+
+		loc := egm96.NewLocationGeodetic(lat,lon,height)
+
+		mag, _ := CalculateWMMMagneticField(loc, date.ToTime())
+		xE, yE, zE, dxE, dyE, dzE := mag.Ellipsoidal()
+
+		if d, err = strconv.ParseFloat(dat[4], 64); err != nil {
+			panic(err)
+		}
+		testDiff("D", mag.D(), d, 0.005, t)
+
+		if i, err = strconv.ParseFloat(dat[5], 64); err != nil {
+			panic(err)
+		}
+		testDiff("I", mag.I(), i, 0.005, t)
+
+		if h, err = strconv.ParseFloat(dat[6], 64); err != nil {
+			panic(err)
+		}
+		testDiff("H", mag.H(), h, 0.05, t)
+
+		if x, err = strconv.ParseFloat(dat[7], 64); err != nil {
+			panic(err)
+		}
+		testDiff("X", xE, x, 0.05, t)
+
+		if y, err = strconv.ParseFloat(dat[8], 64); err != nil {
+			panic(err)
+		}
+		testDiff("Y", yE, y, 0.05, t)
+
+		if z, err = strconv.ParseFloat(dat[9], 64); err != nil {
+			panic(err)
+		}
+		testDiff("Z", zE, z, 0.05, t)
+
+		if f, err = strconv.ParseFloat(dat[10], 64); err != nil {
+			panic(err)
+		}
+		testDiff("F", mag.F(), f, 0.05, t)
+
+		if ddot, err = strconv.ParseFloat(dat[11], 64); err != nil {
+			panic(err)
+		}
+		testDiff("Ddot", MagneticField(mag).DD(), ddot, 0.05, t)
+
+		if idot, err = strconv.ParseFloat(dat[12], 64); err != nil {
+			panic(err)
+		}
+		testDiff("Idot", mag.DI(), idot, 0.05, t)
+
+		if hdot, err = strconv.ParseFloat(dat[13], 64); err != nil {
+			panic(err)
+		}
+		testDiff("Hdot", mag.DH(), hdot, 0.05, t)
+
+		if xdot, err = strconv.ParseFloat(dat[14], 64); err != nil {
+			panic(err)
+		}
+		testDiff("Xdot", dxE, xdot, 0.05, t)
+
+		if ydot, err = strconv.ParseFloat(dat[15], 64); err != nil {
+			panic(err)
+		}
+		testDiff("Ydot", dyE, ydot, 0.05, t)
+
+		if zdot, err = strconv.ParseFloat(dat[16], 64); err != nil {
+			panic(err)
+		}
+		testDiff("Zdot", dzE, zdot, 0.05, t)
+
+		if fdot, err = strconv.ParseFloat(dat[17], 64); err != nil {
+			panic(err)
+		}
+		testDiff("Fdot", mag.DF(), fdot, 0.05, t)
 	}
 
 	if err := scanner.Err(); err != nil {
