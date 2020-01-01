@@ -35,7 +35,7 @@ const (
 
 // MagneticField represents a geomagnetic field and its rate of change.
 type MagneticField struct {
-	l egm96.Location
+	l          egm96.Location
 	x, y, z    float64
 	dx, dy, dz float64
 }
@@ -49,8 +49,8 @@ type MagneticField struct {
 func (m MagneticField) Ellipsoidal() (x, y, z, dx, dy, dz float64) {
 	latS, _, _ := m.l.Spherical()
 	latG, _, _ := m.l.Geodetic()
-	cosDPhi := math.Cos(latS-latG)
-	sinDPhi := math.Sin(latS-latG)
+	cosDPhi := math.Cos(latS - latG)
+	sinDPhi := math.Sin(latS - latG)
 	x = m.x*cosDPhi - m.z*sinDPhi
 	y = m.y
 	z = m.x*sinDPhi + m.z*cosDPhi
@@ -98,7 +98,7 @@ func (m MagneticField) F() (f float64) {
 // The return value is in degrees.
 func (m MagneticField) I() (f float64) {
 	_, _, z, _, _, _ := m.Ellipsoidal()
-	return math.Atan2(z, m.H())/egm96.Deg
+	return math.Atan2(z, m.H()) / egm96.Deg
 }
 
 // D returns the Declination of the magnetic field relative to the WGS84
@@ -113,7 +113,7 @@ func (m MagneticField) I() (f float64) {
 // The return value is in degrees.
 func (m MagneticField) D() (f float64) {
 	x, y, _, _, _, _ := m.Ellipsoidal()
-	return math.Atan2(y, x)/egm96.Deg
+	return math.Atan2(y, x) / egm96.Deg
 }
 
 // GV returns the Grid Variation of the magnetic field.
@@ -125,10 +125,10 @@ func (m MagneticField) GV(loc egm96.Location) (f float64) {
 	f = m.D()
 	lat, lng, _ := loc.Geodetic()
 	if lat > 55*egm96.Deg {
-		f -= lng/egm96.Deg
+		f -= lng / egm96.Deg
 	}
 	if lat < -55*egm96.Deg {
-		f += lng/egm96.Deg
+		f += lng / egm96.Deg
 	}
 	return f
 }
@@ -139,7 +139,7 @@ func (m MagneticField) GV(loc egm96.Location) (f float64) {
 // The return value is in nT/yr.
 func (m MagneticField) DH() (h float64) {
 	x, y, _, dx, dy, _ := m.Ellipsoidal()
-	return (x*dx + y*dy)/m.H()
+	return (x*dx + y*dy) / m.H()
 }
 
 // DF returns the rate of change of the total strength of the magnetic field.
@@ -147,7 +147,7 @@ func (m MagneticField) DH() (h float64) {
 // The return value is in nT/yr.
 func (m MagneticField) DF() (f float64) {
 	x, y, z, dx, dy, dz := m.Ellipsoidal()
-	return (x*dx + y*dy + z*dz)/m.F()
+	return (x*dx + y*dy + z*dz) / m.F()
 }
 
 // DI returns the rate of change of the Inclination of the magnetic field
@@ -157,7 +157,7 @@ func (m MagneticField) DF() (f float64) {
 func (m MagneticField) DI() (f float64) {
 	f = m.F()
 	_, _, z, _, _, dz := m.Ellipsoidal()
-	return (m.H()*dz - m.DH()*z)/(f*f) / egm96.Deg
+	return (m.H()*dz - m.DH()*z) / (f * f) / egm96.Deg
 }
 
 // DD returns the rate of change of the Declination of the magnetic field
@@ -167,7 +167,7 @@ func (m MagneticField) DI() (f float64) {
 func (m MagneticField) DD() (f float64) {
 	f = m.H()
 	x, y, _, dx, dy, _ := m.Ellipsoidal()
-	return (x*dy - dx*y)/(f*f) / egm96.Deg
+	return (x*dy - dx*y) / (f * f) / egm96.Deg
 }
 
 // DGV returns the rate of change of the Grid Variation of the magnetic field.
@@ -293,7 +293,7 @@ func CalculateWMMMagneticField(loc egm96.Location, t time.Time) (field MagneticF
 			}
 		}
 	}
-	dt := float64(TimeToDecimalYears(t)-TimeToDecimalYears(ValidDate))
+	dt := float64(TimeToDecimalYears(t) - TimeToDecimalYears(ValidDate))
 	field.l = loc
 	field.x = curField.x + dt*curField.dx
 	field.y = curField.y + dt*curField.dy

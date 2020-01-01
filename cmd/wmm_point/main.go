@@ -237,7 +237,6 @@ func main() {
 	iD, iM, iS := egm96.DegreesToDMS(mf.I())
 	gvD, gvM, gvS := egm96.DegreesToDMS(mf.GV(loc))
 	fmt.Println("       Main Field             Secular Change")
-//  F       =         46944.2 +/- 152.0 nT           Fdot = -118.8  nT/yr
 	fmt.Printf("F    = %8.1f nT ± %5.1f nT  %6.1f nT/yr\n", mf.F(), mf.ErrF(), mf.DF())
 	if !spherical {
 		fmt.Printf("H    = %8.1f nT ± %5.1f nT  %6.1f nT/yr\n", mf.H(), mf.ErrH(), mf.DH())
