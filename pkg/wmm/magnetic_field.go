@@ -27,10 +27,10 @@ const (
 	errY  = 94      // WMM global average Y error, nT
 	errZ  = 157     // WMM global average Z error, nT
 	errH  = 128     // WMM global average H error, nT
-	errF  = 145     // WMM global average F error, nT
-	errI  = 0.22    // WMM global average I error, º
-	errDA = 0.27    // WMM rough global average D error away from poles, º
-	errDB = 5430    // WMM average H uncertainty scale near the poles, nT
+	errF  = 148     // WMM global average F error, nT
+	errI  = 0.21    // WMM global average I error, º
+	errDA = 0.26    // WMM rough global average D error away from poles, º
+	errDB = 5625    // WMM average H uncertainty scale near the poles, nT
 )
 
 // MagneticField represents a geomagnetic field and its rate of change.
