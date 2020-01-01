@@ -1,4 +1,4 @@
-// Package wmm provides a representation of the 2015 World Magnetic Model (WMM),
+// Package wmm provides a representation of the World Magnetic Model (WMM),
 // a mathematical model of the magnetic field produced by the Earth's core and
 // its variation over time.
 //
@@ -23,13 +23,13 @@ import (
 
 const (
 	AGeo  = 6371200 // Geomagnetic Reference Radius
-	errX  = 138     // WMM global average X error, nT
-	errY  = 89      // WMM global average Y error, nT
-	errZ  = 165     // WMM global average Z error, nT
-	errH  = 133     // WMM global average H error, nT
-	errF  = 152     // WMM global average F error, nT
+	errX  = 131     // WMM global average X error, nT
+	errY  = 94      // WMM global average Y error, nT
+	errZ  = 157     // WMM global average Z error, nT
+	errH  = 128     // WMM global average H error, nT
+	errF  = 145     // WMM global average F error, nT
 	errI  = 0.22    // WMM global average I error, º
-	errDA = 0.23    // WMM rough global average D error away from poles, º
+	errDA = 0.27    // WMM rough global average D error away from poles, º
 	errDB = 5430    // WMM average H uncertainty scale near the poles, nT
 )
 
