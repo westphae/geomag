@@ -90,6 +90,12 @@ mag, _ := wmm.CalculateWMMMagneticField(loc, tt.ToTime())
 fmt.Printf("Declination at your location: %2.2f\n", mag.D())
 ```
 
+## Validation
+The library code is fully tested.
+In particular, all test values provided with the official NOAA WMM are tested here,
+as well as the detailed example in the WMM technical paper.
+Please submit an issue on github if you notice any other issues.
+
 ## License Info
 This software is based on the NOAA World Magnetic Model.
 The source code in this project is not based on the source code provided by NOAA, but on the
