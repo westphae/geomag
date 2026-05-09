@@ -26,10 +26,17 @@ type Model struct {
 	cofName   string
 	validDate time.Time
 	maxN      int // largest n seen in the COF; 12 for standard WMM, 133 for WMMHR
-	cGnm      [][]float64
-	cHnm      [][]float64
-	cDGnm     [][]float64
-	cDHnm     [][]float64
+	// secVarMaxN is the largest n at which any (n, m) has a non-zero
+	// secular-variation coefficient (dG or dH). Standard WMM is 12 (every
+	// term has secular variation); WMMHR is 15 (the core field has time
+	// variation; the n>=16 crustal field is static). The harmonic-sum
+	// loop in computeAtValidDate uses this to skip the f.dx/dy/dz
+	// accumulation for n where all dG=dH=0.
+	secVarMaxN int
+	cGnm       [][]float64
+	cHnm       [][]float64
+	cDGnm      [][]float64
+	cDHnm      [][]float64
 	errors    ErrorModel // populated from defaultErrorModels[cofName] at load; zero if unknown
 
 	cacheMu   sync.Mutex
@@ -176,6 +183,7 @@ func (m *Model) MagneticField(loc egm96.Location, t time.Time) (MagneticField, e
 		dz:     cached.dz,
 		errors: errors,
 	}
+	field.computeEllipsoidal()
 	return field, err
 }
 
@@ -203,26 +211,54 @@ func (m *Model) computeAtValidDate(loc egm96.Location) MagneticField {
 		return f
 	}
 
+	// Iterative power chain for (AGeo/hh)^(n+2). Avoids the O(n²) total
+	// multiplications a naive polynomial.Pow loop would do.
+	basePwr := AGeo / hh
+	pwrs := make([]float64, m.maxN+1)
+	pwrs[0] = basePwr * basePwr * basePwr // n=1: (a/r)^3
+	for n := 2; n <= m.maxN; n++ {
+		pwrs[n-1] = pwrs[n-2] * basePwr
+	}
+
+	// sin(m*λ), cos(m*λ) for m=0..maxN via the angle-addition recurrence
+	// sin((m+1)λ) = sin(mλ)cos(λ) + cos(mλ)sin(λ); cos similarly. Replaces
+	// the O(n²) library trig calls the inner loop would otherwise make.
+	sinL, cosL := math.Sin(lambda), math.Cos(lambda)
+	sinML := make([]float64, m.maxN+1)
+	cosML := make([]float64, m.maxN+1)
+	cosML[0] = 1 // sinML[0] = 0 by zero-init
+	for k := 1; k <= m.maxN; k++ {
+		sinML[k] = sinML[k-1]*cosL + cosML[k-1]*sinL
+		cosML[k] = cosML[k-1]*cosL - sinML[k-1]*sinL
+	}
+
 	dtRef := float64(TimeToDecimalYears(m.validDate) - m.epoch)
+	secVarMaxN := m.secVarMaxN
 	for n := 1; n <= m.maxN; n++ {
 		nn := float64(n + 1)
-		pwr := polynomial.Pow(AGeo/hh, n+2)
+		pwr := pwrs[n-1]
+		// hasSecVar is constant across the inner loop; the n>secVarMaxN
+		// rows in WMMHR (the static crustal field, n>=16) skip the
+		// f.dx/dy/dz accumulation entirely.
+		hasSecVar := n <= secVarMaxN
 		for mm := 0; mm <= n; mm++ {
 			mf := float64(mm)
 			p := P[n][mm]
 			dp := dP[n][mm]
 			g := m.cGnm[n][mm] + dtRef*m.cDGnm[n][mm]
 			h := m.cHnm[n][mm] + dtRef*m.cDHnm[n][mm]
-			dg := m.cDGnm[n][mm]
-			dh := m.cDHnm[n][mm]
-			sinMLambda := math.Sin(mf * lambda)
-			cosMLambda := math.Cos(mf * lambda)
+			sinMLambda := sinML[mm]
+			cosMLambda := cosML[mm]
 			f.x += -pwr * (g*cosMLambda + h*sinMLambda) * dp
 			f.y += pwr / cosPhi * mf * (g*sinMLambda - h*cosMLambda) * p
 			f.z += -nn * pwr * (g*cosMLambda + h*sinMLambda) * p
-			f.dx += -pwr * (dg*cosMLambda + dh*sinMLambda) * dp
-			f.dy += pwr / cosPhi * mf * (dg*sinMLambda - dh*cosMLambda) * p
-			f.dz += -nn * pwr * (dg*cosMLambda + dh*sinMLambda) * p
+			if hasSecVar {
+				dg := m.cDGnm[n][mm]
+				dh := m.cDHnm[n][mm]
+				f.dx += -pwr * (dg*cosMLambda + dh*sinMLambda) * dp
+				f.dy += pwr / cosPhi * mf * (dg*sinMLambda - dh*cosMLambda) * p
+				f.dz += -nn * pwr * (dg*cosMLambda + dh*sinMLambda) * p
+			}
 		}
 	}
 	return f
@@ -293,6 +329,9 @@ func (m *Model) parse(r io.Reader) error {
 		}
 		if m.cDHnm[n][mm], err = strconv.ParseFloat(s[5], 64); err != nil {
 			return fmt.Errorf("bad DHnm value: %w", err)
+		}
+		if (m.cDGnm[n][mm] != 0 || m.cDHnm[n][mm] != 0) && n > m.secVarMaxN {
+			m.secVarMaxN = n
 		}
 	}
 	return scanner.Err()
