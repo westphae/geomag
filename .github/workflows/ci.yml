@@ -37,5 +37,7 @@ jobs:
           cache: true
       - uses: golangci/golangci-lint-action@v6
         with:
-          version: latest
+          # Pin to a v2 release; the action's `version: latest` resolves to a
+          # baked-in v1 default, which rejects our v2 config schema.
+          version: v2.12.2
           args: --timeout=3m
