@@ -58,8 +58,8 @@ func GetWMMCoefficients(n, m int, t time.Time) (gnm, hnm, dgnm, dhnm float64, er
 // Epoch, COFName, and ValidDate.
 // If the passed filename is "", it loads the default (current) coefficients file.
 //
-// The default coefficients file is currently WMM2020.COF, valid from
-// 12/10/2019 until 12/31/2024.
+// The default coefficients file is currently WMM2025.COF, valid from
+// 11/13/2024 until 12/31/2029.
 func LoadWMMCOF(fn string) (err error) {
 	var (
 		data []byte

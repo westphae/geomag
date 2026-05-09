@@ -3,7 +3,7 @@ geomag is an implementation in Go of the NOAA World Magnetic Model.
 
 The World Magnetic Model home is at https://www.ngdc.noaa.gov/geomag/WMM/DoDWMM.shtml.
 
-The coefficients for 2020-2024 can be downloaded at https://www.ngdc.noaa.gov/geomag/WMM/data/WMM2020/WMM2020COF.zip
+The coefficients for 2025-2029 can be downloaded at https://www.ncei.noaa.gov/products/world-magnetic-model
 
 ## Commands
 geomag provides two command line programs, modeled after the command line programs in the official NOAA software.
@@ -64,7 +64,7 @@ h, err := egm96.NewLocationGeodetic(-12.25, 82.75, 1000).HeightAboveMSL()
 ```
 
 ### wmm
-Package wmm provides a representation of the 2020 World Magnetic Model (WMM),
+Package wmm provides a representation of the 2025 World Magnetic Model (WMM),
 a mathematical model of the magnetic field produced by the Earth's core and
 its variation over time.
 
@@ -98,7 +98,7 @@ Please submit an issue on github if you notice any other issues.
 
 ## Updating Coefficients
 Use go-bindata in the root directory to update the coefficients stored in binary form.
-Coefficients are currently updated through the WMM2020 model.
+Coefficients are currently updated through the WMM2025 model.
 First, unzip the new WMM zip file in the assets/wmm directory, then
 `go-bindata -o ../../../pkg/wmm/bindata.go WMM.COF`
 Inside the `bindata.go` file, change the package from `main` to `wmm`.

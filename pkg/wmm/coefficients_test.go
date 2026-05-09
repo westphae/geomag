@@ -57,3 +57,28 @@ func TestGetWMM2020Coefficients(t *testing.T) {
 		}
 	}
 }
+
+func TestGetWMM2025Coefficients(t *testing.T) {
+	_ = LoadWMMCOF("testdata/WMM2025.COF")
+	nms := [][]int{{1, 0}, {2, 2}, {5, 1}, {5, 4}, {12, 0}, {12, 6}, {12, 11}}
+	gs := []float64{-29351.8, 1649.3, 368.9, -142.0, -2.0, 0.6, -1.3}
+	hs := []float64{0.0, -815.1, 45.4, 43.0, 0.0, 0.6, 0.1}
+	dgs := []float64{12.0, -8.0, 1.4, 2.2, 0.0, 0.1, 0.0}
+	dhs := []float64{0.0, -12.1, -0.5, 1.7, 0.0, 0.0, 0.0}
+	ts := []time.Time{
+		time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+	}
+
+	for j, tt := range ts {
+		for i, nm := range nms {
+			n := nm[0]
+			m := nm[1]
+			g, h, dg, dh, _ := GetWMMCoefficients(n, m, tt)
+			testDiff(fmt.Sprintf("G(%d,%d)", n, m), g, gs[i]+float64(j)*dgs[i], eps, t)
+			testDiff(fmt.Sprintf("H(%d,%d)", n, m), h, hs[i]+float64(j)*dhs[i], eps, t)
+			testDiff(fmt.Sprintf("DG(%d,%d)", n, m), dg, dgs[i], eps, t)
+			testDiff(fmt.Sprintf("DH(%d,%d)", n, m), dh, dhs[i], eps, t)
+		}
+	}
+}
