@@ -57,7 +57,7 @@ import (
 	"github.com/westphae/geomag/pkg/wmm"
 )
 
-const usage = "wmm_file [--cof_file=PATH] f [e|Errors|--Errors] INPUT_FILE OUTPUT_FILE"
+const usage = "wmm_file [--hr | --cof_file=PATH] f [e|Errors|--Errors] INPUT_FILE OUTPUT_FILE"
 
 var (
 	headerNoErrors = "Date Coord-System Altitude Latitude Longitude" +
@@ -68,11 +68,16 @@ var (
 
 func main() {
 	cofFile := flag.String("cof_file", "", "alternate WMM coefficients file (optional; default uses embedded WMM2025)")
+	useHR := flag.Bool("hr", false, "use the high-resolution WMMHR model (degree 133); mutually exclusive with --cof_file")
 	flag.Usage = func() {
 		_, _ = fmt.Fprintln(os.Stderr, usage)
 		flag.PrintDefaults()
 	}
 	flag.Parse()
+	if *useHR && *cofFile != "" {
+		_, _ = fmt.Fprintln(os.Stderr, "--hr and --cof_file are mutually exclusive")
+		os.Exit(2)
+	}
 
 	args := flag.Args()
 	withErrors := false
@@ -100,10 +105,18 @@ func main() {
 	}
 	inputPath, outputPath := args[1], args[2]
 
-	model, err := loadModel(*cofFile)
-	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "error loading WMM coefficients: %v\n", err)
-		os.Exit(1)
+	var model *wmm.Model
+	switch {
+	case *useHR:
+		model = hrModelLoader()
+	case *cofFile != "":
+		var err error
+		if model, err = wmm.LoadModel(*cofFile); err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "error loading WMM coefficients: %v\n", err)
+			os.Exit(1)
+		}
+	default:
+		model = wmm.Default()
 	}
 
 	in, err := os.Open(inputPath)
@@ -150,13 +163,6 @@ func main() {
 		_, _ = fmt.Fprintf(os.Stderr, "error reading %s: %v\n", inputPath, err)
 		os.Exit(1)
 	}
-}
-
-func loadModel(path string) (*wmm.Model, error) {
-	if path == "" {
-		return wmm.Default(), nil
-	}
-	return wmm.LoadModel(path)
 }
 
 func processLine(w *bufio.Writer, model *wmm.Model, raw, line string, withErrors bool) error {

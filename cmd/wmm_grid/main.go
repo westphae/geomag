@@ -142,6 +142,7 @@ func main() {
 	withErrors := flag.Bool("errors", false, "append the WMM uncertainty for the chosen element as a second column")
 	outPath := flag.String("output", "", "write rows to this file (default: stdout)")
 	cofFile := flag.String("cof_file", "", "alternate WMM coefficients file (default: embedded WMM2025)")
+	useHR := flag.Bool("hr", false, "use the high-resolution WMMHR model (degree 133); mutually exclusive with --cof_file")
 	flag.Usage = func() {
 		_, _ = fmt.Fprintln(os.Stderr, usage)
 		flag.PrintDefaults()
@@ -188,10 +189,22 @@ func main() {
 		os.Exit(2)
 	}
 
-	model, err := loadModel(*cofFile)
-	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "loading WMM coefficients: %v\n", err)
-		os.Exit(1)
+	if *useHR && *cofFile != "" {
+		_, _ = fmt.Fprintln(os.Stderr, "--hr and --cof_file are mutually exclusive")
+		os.Exit(2)
+	}
+	var model *wmm.Model
+	switch {
+	case *useHR:
+		model = hrModelLoader()
+	case *cofFile != "":
+		var err error
+		if model, err = wmm.LoadModel(*cofFile); err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "loading WMM coefficients: %v\n", err)
+			os.Exit(1)
+		}
+	default:
+		model = wmm.Default()
 	}
 
 	out := os.Stdout
@@ -210,13 +223,6 @@ func main() {
 		_, _ = fmt.Fprintf(os.Stderr, "emit: %v\n", err)
 		os.Exit(1)
 	}
-}
-
-func loadModel(path string) (*wmm.Model, error) {
-	if path == "" {
-		return wmm.Default(), nil
-	}
-	return wmm.LoadModel(path)
 }
 
 func emitGrid(w *bufio.Writer, model *wmm.Model, latAxis, lngAxis, altAxis, dateAxis axis, el elementFn, withErrors bool) error {

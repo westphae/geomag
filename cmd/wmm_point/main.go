@@ -84,9 +84,10 @@ import (
 )
 
 const (
-	usage = "wmm_point --cof_file=WMM2025.COF --spherical [latitude] [longitude] [altitude] [date]"
+	usage = "wmm_point [--hr] [--cof_file=WMM2025.COF] [--spherical] [latitude] [longitude] [altitude] [date]"
 	cofUsage = "COF coefficients file to use, empty for the built-in one"
 	sphericalUsage = "Output spherical values instead of ellipsoidal"
+	hrUsage = "Use the high-resolution WMMHR model (degree 133) instead of the standard WMM (degree 12). Mutually exclusive with --cof_file."
 	lngErr = "Error: Degree input is outside legal range. The legal range is from -180 to 360."
 	fieldWarn = "Warning: The Horizontal Field strength at this location is only 0.000000. " +
 		"Compass readings have VERY LARGE uncertainties in areas where where H is smaller than 1000 nT"
@@ -105,6 +106,7 @@ var prompt = map[string]string{
 var (
 	cofFile    string
 	spherical  bool
+	useHR      bool
 	latitude   float64
 	longitude  float64
 	altitude   float64
@@ -124,19 +126,28 @@ func init() {
 	flag.BoolVar(&spherical, "spherical", false, sphericalUsage)
 	flag.BoolVar(&spherical, "s", false, sphericalUsage)
 
+	flag.BoolVar(&useHR, "hr", false, hrUsage)
+
 	ErrHelp = errors.New(usage)
 }
 
 func main() {
 	flag.Parse()
 
+	if useHR && cofFile != "" {
+		fmt.Fprintln(os.Stderr, "--hr and --cof_file are mutually exclusive")
+		os.Exit(2)
+	}
 	var model *wmm.Model
-	if cofFile != "" {
+	switch {
+	case useHR:
+		model = hrModelLoader()
+	case cofFile != "":
 		if model, err = wmm.LoadModel(cofFile); err != nil {
 			fmt.Println(err)
 			return
 		}
-	} else {
+	default:
 		model = wmm.Default()
 	}
 	validDate := model.ValidDate()
