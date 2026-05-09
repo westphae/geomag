@@ -18,25 +18,30 @@ import (
 // are tolerated to ≲0.5 nT to absorb NOAA's foot-to-km transcription error
 // (3280.0839895 in wmm_file.c instead of the correct 3280.83989501…).
 func TestAgainstNOAASample(t *testing.T) {
+	compareWMMFileSample(t, wmm.Default(), "testdata/sample_output_noaa.txt")
+}
+
+// compareWMMFileSample runs sample_coords.txt through processLine using the
+// given model and asserts every numeric column matches the expected file
+// within per-column tolerances. Shared between TestAgainstNOAASample (WMM)
+// and TestAgainstNOAAHRSample (WMMHR, in main_hr_test.go).
+func compareWMMFileSample(t *testing.T, model *wmm.Model, expectedPath string) {
+	t.Helper()
 	in, err := os.Open("testdata/sample_coords.txt")
 	if err != nil {
 		t.Fatalf("open input: %v", err)
 	}
 	defer in.Close()
 
-	expectedFile, err := os.Open("testdata/sample_output_noaa.txt")
+	expectedFile, err := os.Open(expectedPath)
 	if err != nil {
-		t.Fatalf("open expected: %v", err)
+		t.Fatalf("open expected %s: %v", expectedPath, err)
 	}
 	defer expectedFile.Close()
 	expected := bufio.NewScanner(expectedFile)
 	if !expected.Scan() {
 		t.Fatalf("expected file empty")
 	} // skip header
-
-	model := wmm.Default()
-	w := bufio.NewWriter(os.Stderr) // unused; processLine needs a writer
-	_ = w
 
 	scanner := bufio.NewScanner(in)
 	lineNo := 0

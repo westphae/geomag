@@ -26,6 +26,22 @@ jobs:
       - run: go build ./...
       - run: go test -race -count=1 ./...
 
+  test-lean:
+    name: test (lean, -tags wmm_no_hr)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache: true
+      # Verifies that the wmm_no_hr build path (omit embedded WMMHR data,
+      # ~530 KB smaller binaries; --hr errors with a clear message) compiles
+      # and passes its own tests. The default test job above covers HR.
+      - run: go vet -tags wmm_no_hr ./...
+      - run: go build -tags wmm_no_hr ./...
+      - run: go test -tags wmm_no_hr -count=1 ./...
+
   lint:
     name: golangci-lint
     runs-on: ubuntu-latest

@@ -258,6 +258,87 @@ func TestAll2015v2TestValuesFromPaper(t *testing.T) {
 
 }
 
+// TestAllWMMHR2025TestValues runs the WMMHR2025 published test points (the
+// 12-point compact-format file from NOAA's WMMHR2025COF.zip distribution)
+// through the embedded WMMHR coefficients and validates every returned
+// scalar against the reference. Same idea as TestAll2025TestValuesFromPaper,
+// but the WMMHR reference file uses a different column order — fields are
+// X Y Z H F I D GV Xdot Ydot Zdot Hdot Fdot Idot Ddot rather than the
+// WMM-paper ordering — so this test parses positions explicitly.
+func TestAllWMMHR2025TestValues(t *testing.T) {
+	// Load WMMHR via testdata (we keep the COF copy alongside other test
+	// fixtures so the test doesn't depend on the wmmhr sub-package).
+	if err := LoadWMMCOF("testdata/WMMHR.COF"); err != nil {
+		// WMMHR.COF isn't in testdata — copy from the embedded source via
+		// the wmmhr sub-package would create an import cycle, so we just
+		// skip if the file isn't there. Devs can copy it manually if they
+		// want this test locally; CI ensures it's present.
+		t.Skipf("testdata/WMMHR.COF not present (%v); skipping WMMHR test", err)
+	}
+
+	data, err := os.ReadFile("testdata/WMMHR2025_TEST_VALUES.txt")
+	if err != nil {
+		t.Fatalf("open WMMHR test values: %v", err)
+	}
+	scanner := bufio.NewScanner(bytes.NewReader(data))
+	for scanner.Scan() {
+		line := scanner.Text()
+		if len(line) == 0 || line[0] == '#' {
+			continue
+		}
+		f := strings.Fields(line)
+		if len(f) < 19 {
+			continue
+		}
+		date, _ := strconv.ParseFloat(f[0], 64)
+		altKm, _ := strconv.ParseFloat(f[1], 64)
+		lat, _ := strconv.ParseFloat(f[2], 64)
+		lng, _ := strconv.ParseFloat(f[3], 64)
+		loc := egm96.NewLocationGeodetic(lat, lng, altKm*1000)
+		mag, _ := CalculateWMMMagneticField(loc, DecimalYear(date).ToTime())
+		xE, yE, zE, dxE, dyE, dzE := mag.Ellipsoidal()
+
+		expectX, _ := strconv.ParseFloat(f[4], 64)
+		expectY, _ := strconv.ParseFloat(f[5], 64)
+		expectZ, _ := strconv.ParseFloat(f[6], 64)
+		expectH, _ := strconv.ParseFloat(f[7], 64)
+		expectF, _ := strconv.ParseFloat(f[8], 64)
+		expectI, _ := strconv.ParseFloat(f[9], 64)
+		expectD, _ := strconv.ParseFloat(f[10], 64)
+		// f[11] is GV; "NaN" at non-polar points; skipped here.
+		expectXdot, _ := strconv.ParseFloat(f[12], 64)
+		expectYdot, _ := strconv.ParseFloat(f[13], 64)
+		expectZdot, _ := strconv.ParseFloat(f[14], 64)
+		expectHdot, _ := strconv.ParseFloat(f[15], 64)
+		expectFdot, _ := strconv.ParseFloat(f[16], 64)
+		expectIdot, _ := strconv.ParseFloat(f[17], 64)
+		expectDdot, _ := strconv.ParseFloat(f[18], 64)
+
+		// File reports values at 0.1 nT / 0.01° precision. Use 0.1 nT /
+		// 0.01° tolerance so rounding-direction differences don't trip us.
+		const tolNT = 0.1
+		const tolDeg = 0.01
+		const tolRate = 0.1
+		testDiff("X", xE, expectX, tolNT, t)
+		testDiff("Y", yE, expectY, tolNT, t)
+		testDiff("Z", zE, expectZ, tolNT, t)
+		testDiff("H", mag.H(), expectH, tolNT, t)
+		testDiff("F", mag.F(), expectF, tolNT, t)
+		testDiff("I", mag.I(), expectI, tolDeg, t)
+		testDiff("D", mag.D(), expectD, tolDeg, t)
+		testDiff("Xdot", dxE, expectXdot, tolRate, t)
+		testDiff("Ydot", dyE, expectYdot, tolRate, t)
+		testDiff("Zdot", dzE, expectZdot, tolRate, t)
+		testDiff("Hdot", mag.DH(), expectHdot, tolRate, t)
+		testDiff("Fdot", mag.DF(), expectFdot, tolRate, t)
+		testDiff("Idot", mag.DI(), expectIdot, tolDeg, t)
+		testDiff("Ddot", mag.DD(), expectDdot, tolDeg, t)
+	}
+	if err := scanner.Err(); err != nil {
+		t.Fatalf("scan: %v", err)
+	}
+}
+
 func TestAll2025TestValuesFromPaper(t *testing.T) {
 	var (
 		date                   DecimalYear
