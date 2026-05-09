@@ -2,6 +2,7 @@ package egm96
 
 import (
 	"fmt"
+	"math"
 	"testing"
 )
 
@@ -51,6 +52,44 @@ func TestNewLocationMSL(t *testing.T) {
 		h, _ := l.HeightAboveMSL()
 		// 0.1 seems to be the error introduced by bi-linear interpolation rather than splines
 		testDiff("height", h, hts[i], eps, t)
+	}
+}
+
+// TestNegativeLongitudeAccepted is the regression test for issue #3:
+// callers using the GPS/WGS84 [-180, 180] longitude convention should not
+// hit "requested longitude … lies outside of EGM96 longitude range".
+func TestNegativeLongitudeAccepted(t *testing.T) {
+	// The exact case from #3: somewhere in northern California.
+	lat, lng := 39.865315, -121.32870643118366
+
+	// Both methods that take user-supplied lat/lng should work.
+	if _, err := NewLocationGeodetic(lat, lng, 0).HeightAboveMSL(); err != nil {
+		t.Errorf("HeightAboveMSL with negative lng: %v", err)
+	}
+	if _, err := NewLocationGeodetic(lat, lng, 0).NearestEGM96GridPoint(); err != nil {
+		t.Errorf("NearestEGM96GridPoint with negative lng: %v", err)
+	}
+
+	// Equivalent positive-longitude form should produce the same result.
+	hNeg, _ := NewLocationGeodetic(lat, lng, 0).HeightAboveMSL()
+	hPos, _ := NewLocationGeodetic(lat, lng+360, 0).HeightAboveMSL()
+	if hNeg != hPos {
+		t.Errorf("MSL height differs across longitude conventions: %.6f vs %.6f", hNeg, hPos)
+	}
+
+	// And over-wound longitudes (e.g. 540 = 180) should also work.
+	if _, err := NewLocationGeodetic(0, 540, 0).HeightAboveMSL(); err != nil {
+		t.Errorf("HeightAboveMSL with lng=540 (= 180): %v", err)
+	}
+
+	// Stored longitude should be in [0, 360°) as a radian-equivalent value.
+	loc := NewLocationGeodetic(lat, lng, 0)
+	_, lngStored, _ := loc.Geodetic()
+	wantLngDeg := lng + 360 // -121.328… → 238.671…
+	if got := lngStored / Deg; got < 0 || got >= 360 {
+		t.Errorf("stored longitude %v deg not in [0,360)", got)
+	} else if math.Abs(got-wantLngDeg) > 1e-9 {
+		t.Errorf("stored longitude = %v deg, want %v deg", got, wantLngDeg)
 	}
 }
 

@@ -49,35 +49,54 @@ type Location struct {
 	height    float64
 }
 
+// normalizeLongitude wraps a longitude in degrees into [0, 360). Both the
+// usual GPS/WGS84 [-180, 180] convention and any over-wound values like 540
+// (= 180) round-trip correctly. Callers can rely on stored Location longitudes
+// always being in [0, 360) regardless of input convention.
+func normalizeLongitude(lng float64) float64 {
+	lng = math.Mod(lng, 360)
+	if lng < 0 {
+		lng += 360
+	}
+	return lng
+}
+
 // NewLocationGeodetic returns a Location given an input latitude, longitude,
 // and height specified in the Geodetic system.
 //
-// The Geodetic coordinate system is the usual latitude, longitude, and
-// height above the WGS84 Reference Ellipsoid, i.e. as typically measured by a GPS receiver.
+// The Geodetic coordinate system is the usual latitude, longitude, and height
+// above the WGS84 Reference Ellipsoid, i.e. as typically measured by a GPS
+// receiver.
 //
-// Latitude and longitude are specified in decimal degrees and height in meters.
+// Latitude and longitude are specified in decimal degrees and height in
+// meters. Negative longitudes (e.g. -121 for the western hemisphere) are
+// accepted and normalized to [0, 360); a subsequent (Location).Geodetic()
+// call returns the normalized form.
 //
 // Geodetic coordinates are the un-primed variables φ,λ,h in the WMM paper.
 func NewLocationGeodetic(latitude, longitude, height float64) (loc Location) {
 	return Location{
-		latitude: latitude*Deg,
-		longitude: longitude*Deg,
-		height: height,
+		latitude:  latitude * Deg,
+		longitude: normalizeLongitude(longitude) * Deg,
+		height:    height,
 	}
 }
 
-// NewLocationMSL returns a Location given an input latitude, longitude, and height
-// above mean sea level.
+// NewLocationMSL returns a Location given an input latitude, longitude, and
+// height above mean sea level.
 //
-// The latitude and longitude are as specified in the Geodetic Coordinate System,
-// and the height is the height above mean sea level, NOT above the WGS84 Reference Ellipsoid.
+// The latitude and longitude are as specified in the Geodetic Coordinate
+// System, and the height is the height above mean sea level, NOT above the
+// WGS84 Reference Ellipsoid.
 //
-// Latitude and longitude are specified in decimal degrees and height in meters.
+// Latitude and longitude are specified in decimal degrees and height in
+// meters. Negative longitudes are accepted and normalized to [0, 360).
 func NewLocationMSL(latitude, longitude, height float64) (loc Location, err error) {
 	egm96LoadOnce.Do(loadEGM96Grid)
 
+	longitude = normalizeLongitude(longitude)
 	nLng := int((longitude-egm96X0)/egm96DX) // Grid x just below desired x
-	nLat := int((latitude-egm96Y0)/egm96DY) // Grid y just below desired y
+	nLat := int((latitude-egm96Y0)/egm96DY)  // Grid y just below desired y
 
 	if nLng < 0 || nLng > egm96XN {
 		return Location{}, fmt.Errorf("requested longitude %4.2f lies outside of EGM96 longitude range %4.1f to %4.1f",
@@ -182,16 +201,11 @@ var (
 func (l Location) NearestEGM96GridPoint() (loc Location, err error) {
 	egm96LoadOnce.Do(loadEGM96Grid)
 
-	lng := l.longitude/Deg
-	for lng<0 {
-		lng += 360
-	}
-	for lng>=360 {
-		lng -= 360
-	}
-	lat := l.latitude/Deg
-	nLng := int((lng-egm96X0)/egm96DX+0.5)
-	nLat := int((lat-egm96Y0)/egm96DY+0.5)
+	// l.longitude is already normalized to [0, 360°) at construction.
+	lng := l.longitude / Deg
+	lat := l.latitude / Deg
+	nLng := int((lng-egm96X0)/egm96DX + 0.5)
+	nLat := int((lat-egm96Y0)/egm96DY + 0.5)
 
 	if nLng < 0 || nLng > egm96XN {
 		return Location{},
