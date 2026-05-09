@@ -8,6 +8,56 @@ import (
 
 const eps = 1e-6
 
+// TestEmbeddedDefaultLoads exercises the embedded default coefficients via
+// NewModel. It would fail if the embedded WMM.COF is corrupt or unparseable
+// (the case that snuck through the earlier go-bindata-based PR #8 because
+// every other test loaded explicit testdata files instead of the embed).
+func TestEmbeddedDefaultLoads(t *testing.T) {
+	m, err := NewModel()
+	if err != nil {
+		t.Fatalf("NewModel() failed to parse the embedded WMM.COF: %v", err)
+	}
+	if m.COFName() == "" {
+		t.Errorf("embedded model has no COF name")
+	}
+	if m.Epoch() == 0 {
+		t.Errorf("embedded model has zero epoch")
+	}
+	if m.ValidDate().IsZero() {
+		t.Errorf("embedded model has no valid date")
+	}
+	// Sanity-check at least one coefficient — guards against the parser
+	// silently producing empty coefficient slices.
+	g, _, _, _, err := m.Coefficients(1, 0, m.ValidDate())
+	if err != nil {
+		t.Errorf("Coefficients(1, 0): %v", err)
+	}
+	if g == 0 {
+		t.Errorf("g(1,0) = 0; coefficients look unloaded")
+	}
+}
+
+// TestLoadWMMCOFEmptyReloadsEmbedded covers the legacy package-level path
+// that PR #8's corrupt bindata.go silently broke at init time.
+func TestLoadWMMCOFEmptyReloadsEmbedded(t *testing.T) {
+	if err := LoadWMMCOF(""); err != nil {
+		t.Fatalf("LoadWMMCOF(\"\"): %v", err)
+	}
+	if Epoch == 0 {
+		t.Errorf("Epoch package var not populated after LoadWMMCOF(\"\")")
+	}
+	if COFName == "" {
+		t.Errorf("COFName package var not populated after LoadWMMCOF(\"\")")
+	}
+	g, _, _, _, err := GetWMMCoefficients(1, 0, ValidDate)
+	if err != nil {
+		t.Errorf("GetWMMCoefficients(1, 0): %v", err)
+	}
+	if g == 0 {
+		t.Errorf("g(1,0) = 0; coefficients did not load from embedded default")
+	}
+}
+
 func TestGetWMM2015v2Coefficients(t *testing.T) {
 	_ = LoadWMMCOF("testdata/WMM2015v2.COF")
 	nms := [][]int{{1, 0}, {2, 2}, {5, 1}, {5, 4}, {12, 0}, {12, 6}, {12, 11}}

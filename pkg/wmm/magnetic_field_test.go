@@ -3,7 +3,7 @@ package wmm
 import (
 	"bufio"
 	"bytes"
-	"io/ioutil"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -107,7 +107,7 @@ func TestAll2015v2TestValuesFromPaper(t *testing.T) {
 
 	_ = LoadWMMCOF("testdata/WMM2015v2.COF")
 
-	data, err = ioutil.ReadFile("testdata/WMM2015v2TestValues.txt")
+	data, err = os.ReadFile("testdata/WMM2015v2TestValues.txt")
 	scanner := bufio.NewScanner(bytes.NewReader(data))
 	// Read and parse header
 	if !scanner.Scan() {
@@ -223,7 +223,7 @@ func TestAll2025TestValuesFromPaper(t *testing.T) {
 
 	_ = LoadWMMCOF("testdata/WMM2025.COF")
 
-	data, err = ioutil.ReadFile("testdata/WMM2025_TEST_VALUES.txt")
+	data, err = os.ReadFile("testdata/WMM2025_TEST_VALUES.txt")
 	scanner := bufio.NewScanner(bytes.NewReader(data))
 	// Read and parse header
 	if !scanner.Scan() {
@@ -356,7 +356,7 @@ func TestAll2020TestValuesFromPaper(t *testing.T) {
 
 	_ = LoadWMMCOF("testdata/WMM2020.COF")
 
-	data, err = ioutil.ReadFile("testdata/WMM2020_TEST_VALUES.txt")
+	data, err = os.ReadFile("testdata/WMM2020_TEST_VALUES.txt")
 	scanner := bufio.NewScanner(bytes.NewReader(data))
 	// Read and parse header
 	if !scanner.Scan() {

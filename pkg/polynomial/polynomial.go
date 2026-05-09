@@ -38,7 +38,7 @@ func (p Polynomial) Derivative(n int) (q Polynomial) {
 	}
 
 	q = p
-	for m:=0; m<n; m++ {
+	for range n {
 		q = q.Derivative(1)
 	}
 	return q

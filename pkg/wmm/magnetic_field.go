@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/westphae/geomag/pkg/egm96"
-	"github.com/westphae/geomag/pkg/polynomial"
 )
 
 const (
@@ -229,77 +228,16 @@ func (m MagneticField) ErrD() (f float64) {
 	return math.Sqrt(errDA*errDA + errDB*errDB/(h*h))
 }
 
-var (
-	curLoc   egm96.Location // Spherical
-	curField MagneticField
-)
-
-func init() {
-	_ = LoadWMMCOF("")
-}
-
 // CalculateWMMMagneticField returns the magnetic field at the input location
-// at the input time.
+// and time, using the package-level default Model.
 //
-// The WMM is valid at heights from -1km to +850km relative
-// to the WGS84 ellipsoid, so this function will return an error if the input
-// height is outside of that range.  Similarly, the function will return an
-// error if requested time is outside the validity period of the loaded
-// coefficients. The function will still return the calculated field in these
-// cases.  The error is informational.
+// The WMM is valid at heights from -1km to +850km relative to the WGS84
+// ellipsoid, and within five years of the model's epoch. Outside that range
+// the function returns an informational error along with the calculated field.
 //
-// This function caches the WMM coefficients for computational speed.
-// TODO: implement this and check the description is correct. Use benchmarking
-// It also caches intermediate computational steps for speed in looping over
-// locations.
-// The innermost loop should be over time, followed in order by height,
-// latitude, and finally longitude.
-//
-// See the description of LoadWMMCOF for the validity period of the
-// default (current) coefficients file.
-func CalculateWMMMagneticField(loc egm96.Location, t time.Time) (field MagneticField, err error) {
-	// TODO: give an err if height<-1000m or height>850000m.
-	if !loc.Equals(curLoc) {
-		curLoc = loc
-		curField = *new(MagneticField)
-		phi, lambda, hh := loc.Spherical()
-		sinPhi := math.Sin(phi)
-		cosPhi := math.Cos(phi)
-		var g, h, dg, dh float64
-		for n:=1; n<=MaxLegendreOrder; n++ {
-			nn := float64(n+1)
-			// if height varies, recalculate from here
-			f := polynomial.Pow(AGeo/hh, n+2)
-			for m:=0; m<=n; m++ {
-				mf := float64(m)
-				// if latitude varies, recalculate from here
-				p := polynomial.LegendreFunction(n, m, sinPhi)
-				q := polynomial.LegendreFunction(n+1, m, sinPhi)
-				if m>0 {
-					p *= math.Sqrt(2/polynomial.FactorialRatioFloat(n+m, n-m))
-					q *= math.Sqrt(2/polynomial.FactorialRatioFloat(n+m, n-m))
-				}
-				dp := nn*math.Tan(phi)*p - (nn-mf)/cosPhi*q
-				g, h, dg, dh, err = GetWMMCoefficients(n, m, ValidDate)
-				// if longitude varies, recalculate from here
-				sinMLambda := math.Sin(mf*lambda)
-				cosMLambda := math.Cos(mf*lambda)
-				curField.x += -f*(g*cosMLambda+h*sinMLambda)*dp
-				curField.y += f/cosPhi*mf*(g*sinMLambda-h*cosMLambda)*p
-				curField.z += -nn*f*(g*cosMLambda+h*sinMLambda)*p
-				curField.dx += -f*(dg*cosMLambda+dh*sinMLambda)*dp
-				curField.dy += f/cosPhi*mf*(dg*sinMLambda-dh*cosMLambda)*p
-				curField.dz += -nn*f*(dg*cosMLambda+dh*sinMLambda)*p
-			}
-		}
-	}
-	dt := float64(TimeToDecimalYears(t) - TimeToDecimalYears(ValidDate))
-	field.l = loc
-	field.x = curField.x + dt*curField.dx
-	field.y = curField.y + dt*curField.dy
-	field.z = curField.z + dt*curField.dz
-	field.dx = curField.dx
-	field.dy = curField.dy
-	field.dz = curField.dz
-	return field, err
+// For batch evaluation across many points, prefer Default().MagneticField or
+// hold a *Model directly — both expose a per-location cache that makes
+// time-sweep loops at a fixed location effectively free.
+func CalculateWMMMagneticField(loc egm96.Location, t time.Time) (MagneticField, error) {
+	return Default().MagneticField(loc, t)
 }

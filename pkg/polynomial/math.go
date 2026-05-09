@@ -3,45 +3,49 @@ package polynomial
 // Factorial calculates the factorial of the input integer.
 // Doesn't handle negative numbers gracefully, up to user to not pass them.
 // Handles up to n=20, beyond that it will overflow.
-func Factorial(n int) (z int) {
-	if n>1 {
-		return n*Factorial(n-1)
+func Factorial(n int) int {
+	r := 1
+	for i := 2; i <= n; i++ {
+		r *= i
 	}
-	return 1
+	return r
 }
 
-// FactorialRatio calculates the ratio of the factorial of the input integers.
+// FactorialRatio calculates n!/m!.
 // Useful when dividing a large factorial by a smaller factorial, to fit
 // inside an int64.
 // Doesn't handle negative or large numbers gracefully, up to user to not pass them.
-func FactorialRatio(n, m int) (z int) {
-	if n>m {
-		return n*FactorialRatio(n-1, m)
+func FactorialRatio(n, m int) int {
+	r := 1
+	for i := m + 1; i <= n; i++ {
+		r *= i
 	}
-	return 1
+	return r
 }
 
-// FactorialRatioFloat calculates the ratio of the factorial of the input integers
-// and returns it as a float, to handle large numbers.
+// FactorialRatioFloat calculates n!/m! as a float64, to handle large numbers.
 // Doesn't handle negative or large numbers gracefully, up to user to not pass them.
-func FactorialRatioFloat(n, m int) (z float64) {
-	if n>m {
-		return float64(n)*FactorialRatioFloat(n-1, m)
+func FactorialRatioFloat(n, m int) float64 {
+	r := 1.0
+	for i := m + 1; i <= n; i++ {
+		r *= float64(i)
 	}
-	return 1
+	return r
 }
 
 // Pow raises a float64 to the integer power n.
-// Works for any n, positive, negative or 0.
-// Warning: Very inefficient for large n.
-func Pow(x float64, n int) (y float64) {
-	if n>0 {
-		return x*Pow(x,n-1)
-	}
-
-	if n==0 {
+// Works for any n, positive, negative, or 0.
+func Pow(x float64, n int) float64 {
+	if n == 0 {
 		return 1
 	}
-
-	return 1/Pow(x,-n)
+	if n < 0 {
+		x = 1 / x
+		n = -n
+	}
+	r := 1.0
+	for range n {
+		r *= x
+	}
+	return r
 }

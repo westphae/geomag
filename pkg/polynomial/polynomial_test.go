@@ -22,7 +22,7 @@ func TestPow(t *testing.T) {
 		ys = []float64{32, 0.125, 1, 1, 0.001}
 	)
 
-	for i:=0; i<len(xs); i++ {
+	for i := range xs {
 		y := Pow(xs[i], ns[i])
 		testDiff("Pow", y, ys[i], eps, t)
 	}
@@ -34,7 +34,7 @@ func TestFactorial(t *testing.T) {
 		zs = []int{2432902008176640000, 121645100408832000, 120, 6, 24, 1, 1}
 	)
 
-	for i:=0; i<len(ns); i++ {
+	for i := range ns {
 		z := Factorial(ns[i])
 		testDiff(fmt.Sprintf("%d!", ns[i]), float64(z), float64(zs[i]), eps, t)
 	}
@@ -48,7 +48,7 @@ func TestFactorialRatioFloat(t *testing.T) {
 		zs = []float64{360, 120, 720, 720, 1, 3, 1, 620448401733239439360000}
 	)
 
-	for i:=0; i<len(ns); i++ {
+	for i := range ns {
 		z := FactorialRatioFloat(ns[i], ms[i])
 		testDiff(fmt.Sprintf("%d!/%d!", ns[i], ms[i]), z, zs[i], eps, t)
 	}
@@ -68,8 +68,8 @@ func TestEvaluate(t *testing.T) {
 		}
 	)
 
-	for i:=0; i<len(cs); i++ {
-		for j:=0; j<len(xs); j++ {
+	for i := range cs {
+		for j := range xs {
 			p := NewPolynomial(cs[i])
 			y := p.Evaluate(xs[j])
 			testDiff(fmt.Sprintf("Evaluate %v(%3.1f)", cs[i], xs[j]), y, ys[j][i], eps, t)
@@ -93,7 +93,7 @@ func TestDerivative(t *testing.T) {
 		}
 	)
 
-	for i:=0; i<len(cs); i++ {
+	for i := range cs {
 		p := NewPolynomial(cs[i])
 
 		y := p.Derivative(1).Coefficients()

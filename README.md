@@ -97,14 +97,11 @@ as well as the detailed example in the WMM technical paper.
 Please submit an issue on github if you notice any other issues.
 
 ## Updating Coefficients
-Use go-bindata in the root directory to update the coefficients stored in binary form.
-Coefficients are currently updated through the WMM2025 model.
-First, unzip the new WMM zip file in the assets/wmm directory, then
-`go-bindata -o ../../../pkg/wmm/bindata.go WMM.COF`
-Inside the `bindata.go` file, change the package from `main` to `wmm`.
-Change the `Assets` function to `getAssets` and remove the
-`MustAsset`, `AssetInfo`, `AssetNames`, `AssetDir`, `bintree`, `_bintree`, `RestoreAsset`, `RestoreAssets`, and `_filePath`
-functions to produce cleaner godocs.
+Coefficients are currently updated through the WMM2025 model. To bump to a
+newer release, drop the new `WMM.COF` into `pkg/wmm/embedded/` (replacing the
+existing one) and rebuild — the file is embedded at compile time via
+`//go:embed`. Add the historical version to `pkg/wmm/testdata/` if you want
+to keep its tests alongside the new ones.
 
 ## License Info
 This software is based on the NOAA World Magnetic Model.

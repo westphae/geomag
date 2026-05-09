@@ -18,11 +18,15 @@ package egm96
 import (
 	"bufio"
 	"bytes"
+	_ "embed"
 	"fmt"
 	"math"
 	"strconv"
 	"strings"
 )
+
+//go:embed embedded/ww15mgh.grd
+var defaultGrid []byte
 
 // Constants defining the WGS84 reference ellipsoid
 const (
@@ -208,18 +212,14 @@ func (l Location) NearestEGM96GridPoint() (loc Location, err error) {
 }
 
 func loadEGM96Grid() {
-	data, err := getAsset("ww15mgh.grd")
-	if err != nil {
-		panic(err)
-	}
-
 	var (
+		err error
 		dat []string
 		v   float64
 		i   int
 	)
 
-	scanner := bufio.NewScanner(bytes.NewReader(data))
+	scanner := bufio.NewScanner(bytes.NewReader(defaultGrid))
 	// Read and parse header
 	if !scanner.Scan() {
 		panic("Could not read header line from EGM96 grid file")
