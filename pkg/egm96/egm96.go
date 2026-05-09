@@ -23,7 +23,13 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"sync"
 )
+
+// egm96LoadOnce guards loadEGM96Grid so it runs exactly once across all
+// goroutines, even under concurrent first-use of HeightAboveMSL,
+// NewLocationMSL, or NearestEGM96GridPoint. Fixes issue #4.
+var egm96LoadOnce sync.Once
 
 //go:embed embedded/ww15mgh.grd
 var defaultGrid []byte
@@ -68,9 +74,7 @@ func NewLocationGeodetic(latitude, longitude, height float64) (loc Location) {
 //
 // Latitude and longitude are specified in decimal degrees and height in meters.
 func NewLocationMSL(latitude, longitude, height float64) (loc Location, err error) {
-	if len(egm96Grid)==0 {
-		loadEGM96Grid()
-	}
+	egm96LoadOnce.Do(loadEGM96Grid)
 
 	nLng := int((longitude-egm96X0)/egm96DX) // Grid x just below desired x
 	nLat := int((latitude-egm96Y0)/egm96DY) // Grid y just below desired y
@@ -132,9 +136,7 @@ func (l Location) Spherical() (phi, lambda, r float64) {
 // It then subtracts this height from the total height above the WGS84 reference
 // ellipsoid at the input Location, giving the the height above MSL.
 func (l Location) HeightAboveMSL() (h float64, err error) {
-	if len(egm96Grid)==0 {
-		loadEGM96Grid()
-	}
+	egm96LoadOnce.Do(loadEGM96Grid)
 
 	lng := l.longitude/Deg
 	lat := l.latitude/Deg
@@ -178,9 +180,7 @@ var (
 //
 // Ignores any height value in the input Location.
 func (l Location) NearestEGM96GridPoint() (loc Location, err error) {
-	if len(egm96Grid)==0 {
-		loadEGM96Grid()
-	}
+	egm96LoadOnce.Do(loadEGM96Grid)
 
 	lng := l.longitude/Deg
 	for lng<0 {
