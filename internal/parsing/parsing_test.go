@@ -143,6 +143,48 @@ func TestTimeGood(t *testing.T) {
 	}
 }
 
+func TestNOAAAltitudeGood(t *testing.T) {
+	type tc struct {
+		inp  string
+		want float64
+	}
+	cases := []tc{
+		{"K100", 100000},
+		{"K1.3", 1300},
+		{"K-1", -1000},
+		{"M1042", 1042},
+		{"M0", 0},
+		{"F30000", 30000 * 0.3048},
+		{"F0", 0},
+		{"k100", 100000}, // case-insensitive units
+	}
+	for _, c := range cases {
+		got, err := ParseNOAAAltitude(c.inp)
+		if err != nil {
+			t.Errorf("%sParseNOAAAltitude(%q) err=%v%s", red, c.inp, err, reset)
+			continue
+		}
+		testDiff("ParseNOAAAltitude("+c.inp+")", got, c.want, eps, t)
+	}
+}
+
+func TestNOAAAltitudeBad(t *testing.T) {
+	bad := []string{
+		"",
+		"K",       // no magnitude
+		"100",     // no unit
+		"X100",    // unknown unit
+		"K1.2.3",  // not a valid float
+		"KK100",   // double prefix
+	}
+	for _, inp := range bad {
+		_, err := ParseNOAAAltitude(inp)
+		if err == nil {
+			t.Errorf("%sParseNOAAAltitude(%q) incorrectly succeeded%s", red, inp, reset)
+		}
+	}
+}
+
 func TestTimeBad(t *testing.T) {
 	inps := []string{
 		"Y2019",

@@ -83,6 +83,32 @@ func ParseAltitude(inp string) (height float64, hae bool, err error) {
 	return
 }
 
+// ParseNOAAAltitude parses a single altitude token in NOAA's wmm_file
+// convention: a single-character unit prefix (K = kilometers, M = meters,
+// F = feet) followed by a signed decimal magnitude. The result is in meters.
+//
+// Examples: "K100" → 100000.0, "M1042" → 1042.0, "F30000" → 9144.0,
+// "K-1" → -1000.0, "K1.3" → 1300.0.
+func ParseNOAAAltitude(inp string) (meters float64, err error) {
+	if len(inp) < 2 {
+		return 0, fmt.Errorf("%q is too short to be a NOAA altitude (expected K/M/F prefix + number)", inp)
+	}
+	unit := inp[0]
+	mag, err := strconv.ParseFloat(inp[1:], 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid altitude magnitude %q: %w", inp[1:], err)
+	}
+	switch unit {
+	case 'K', 'k':
+		return mag * 1000, nil
+	case 'M', 'm':
+		return mag, nil
+	case 'F', 'f':
+		return mag * 0.3048, nil // international foot
+	}
+	return 0, fmt.Errorf("unknown altitude unit %q in %q (expected K, M, or F)", string(unit), inp)
+}
+
 // ParseTime takes an input string in various forms, representing a time,
 // and returns the float representation.
 //
