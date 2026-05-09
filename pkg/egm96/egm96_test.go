@@ -93,6 +93,40 @@ func TestNegativeLongitudeAccepted(t *testing.T) {
 	}
 }
 
+// TestBoundaryCorners exercises edges of the EGM96 grid, where the
+// v1.2025.1 bilinear-bounds off-by-one bug would have either silently
+// produced wrong results or read out-of-bounds. The grid is laid out
+// top-down (Y0=+90, Y1=-90), so lat=+90 lands on the topmost row (legal)
+// while lat=-90 would require a row past the bottom (correctly rejected).
+func TestBoundaryCorners(t *testing.T) {
+	type tc struct {
+		name     string
+		lat, lng float64
+		wantOK   bool
+	}
+	cases := []tc{
+		{"north-pole-prime-meridian", 90, 0, true},          // legal; bilinear top-row degenerates
+		{"south-pole-prime-meridian", -90, 0, false},        // illegal; would read row past bottom
+		{"just-inside-south-pole", -89.5, 0, true},
+		{"just-inside-north-pole", 89.5, 0, true},
+		{"date-line-near-equator", 0, 179.99, true},
+		{"wrap-to-zero", 0, 359.99, true},                   // valid after normalization
+		{"negative-conv-180-equator", 0, -180, true},         // becomes 180
+		{"negative-conv-179.999", 0, -179.999, true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			loc := NewLocationGeodetic(c.lat, c.lng, 0)
+			h, err := loc.HeightAboveMSL()
+			gotOK := err == nil
+			if gotOK != c.wantOK {
+				t.Errorf("HeightAboveMSL(%v, %v): err=%v wantOK=%v (h=%v)",
+					c.lat, c.lng, err, c.wantOK, h)
+			}
+		})
+	}
+}
+
 func ExampleLocation_NearestEGM96GridPoint() {
 	p, _ := NewLocationGeodetic(-12.25, 82.75, 0).NearestEGM96GridPoint()
 	fmt.Printf("Lat: %4.2f, Lng: %4.2f, height: %5.3f", p.latitude/Deg, p.longitude/Deg, p.height)

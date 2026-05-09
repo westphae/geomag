@@ -98,27 +98,28 @@ func NewLocationMSL(latitude, longitude, height float64) (loc Location, err erro
 	nLng := int((longitude-egm96X0)/egm96DX) // Grid x just below desired x
 	nLat := int((latitude-egm96Y0)/egm96DY)  // Grid y just below desired y
 
-	if nLng < 0 || nLng > egm96XN {
+	// Bilinear interpolation reads [nLng], [nLng+1], [nLat], [nLat+1], so the
+	// largest valid index is egm96XN-2 / egm96YN-2.
+	if nLng < 0 || nLng > egm96XN-2 {
 		return Location{}, fmt.Errorf("requested longitude %4.2f lies outside of EGM96 longitude range %4.1f to %4.1f",
 			longitude, egm96X0, egm96X1)
 	}
-	if nLat < 0 || nLat > egm96YN {
+	if nLat < 0 || nLat > egm96YN-2 {
 		return Location{}, fmt.Errorf("requested latitude %4.2f lies outside of EGM96 latitude range %4.1f to %4.1f",
 			latitude, egm96Y0, egm96Y1)
 	}
 
-	x := (longitude-egm96X0)/egm96DX-float64(nLng)
-	y := (latitude-egm96Y0)/egm96DY-float64(nLat)
+	x := (longitude-egm96X0)/egm96DX - float64(nLng)
+	y := (latitude-egm96Y0)/egm96DY - float64(nLat)
 	h00 := egm96Grid[nLat*egm96XN+nLng]
 	h10 := egm96Grid[nLat*egm96XN+nLng+1]
 	h01 := egm96Grid[(nLat+1)*egm96XN+nLng]
 	h11 := egm96Grid[(nLat+1)*egm96XN+nLng+1]
 
-
 	return Location{
-		latitude: latitude*Deg,
-		longitude: longitude*Deg,
-		height: height + ((1-x)*(1-y)*h00 + x*(1-y)*h10 + (1-x)*y*h01 + x*y*h11),
+		latitude:  latitude * Deg,
+		longitude: longitude * Deg,
+		height:    height + ((1-x)*(1-y)*h00 + x*(1-y)*h10 + (1-x)*y*h01 + x*y*h11),
 	}, nil
 }
 
@@ -157,22 +158,24 @@ func (l Location) Spherical() (phi, lambda, r float64) {
 func (l Location) HeightAboveMSL() (h float64, err error) {
 	egm96LoadOnce.Do(loadEGM96Grid)
 
-	lng := l.longitude/Deg
-	lat := l.latitude/Deg
+	lng := l.longitude / Deg
+	lat := l.latitude / Deg
 	nLng := int((lng-egm96X0)/egm96DX) // Grid x just below desired x
 	nLat := int((lat-egm96Y0)/egm96DY) // Grid y just below desired y
 
-	if nLng < 0 || nLng > egm96XN {
+	// Bilinear interpolation reads [nLng], [nLng+1], [nLat], [nLat+1], so the
+	// largest valid index is egm96XN-2 / egm96YN-2.
+	if nLng < 0 || nLng > egm96XN-2 {
 		return 0, fmt.Errorf("requested longitude %4.2f lies outside of EGM96 longitude range %4.1f to %4.1f",
 			lng, egm96X0, egm96X1)
 	}
-	if nLat < 0 || nLat > egm96YN {
+	if nLat < 0 || nLat > egm96YN-2 {
 		return 0, fmt.Errorf("requested latitude %4.2f lies outside of EGM96 latitude range %4.1f to %4.1f",
 			lat, egm96Y0, egm96Y1)
 	}
 
-	x := (lng-egm96X0)/egm96DX-float64(nLng)
-	y := (lat-egm96Y0)/egm96DY-float64(nLat)
+	x := (lng-egm96X0)/egm96DX - float64(nLng)
+	y := (lat-egm96Y0)/egm96DY - float64(nLat)
 	h00 := egm96Grid[nLat*egm96XN+nLng]
 	h10 := egm96Grid[nLat*egm96XN+nLng+1]
 	h01 := egm96Grid[(nLat+1)*egm96XN+nLng]
@@ -207,12 +210,14 @@ func (l Location) NearestEGM96GridPoint() (loc Location, err error) {
 	nLng := int((lng-egm96X0)/egm96DX + 0.5)
 	nLat := int((lat-egm96Y0)/egm96DY + 0.5)
 
-	if nLng < 0 || nLng > egm96XN {
+	// NearestEGM96GridPoint reads only [nLat*egm96XN+nLng], so valid indices
+	// are [0, egm96XN-1] / [0, egm96YN-1].
+	if nLng < 0 || nLng >= egm96XN {
 		return Location{},
 			fmt.Errorf("requested longitude %4.2f lies outside of EGM96 longitude range %4.1f to %4.1f",
 				lng, egm96X0, egm96X1)
 	}
-	if nLat < 0 || nLat > egm96YN {
+	if nLat < 0 || nLat >= egm96YN {
 		return Location{},
 			fmt.Errorf("requested latitude %4.2f lies outside of EGM96 latitude range %4.1f to %4.1f",
 				lat, egm96Y0, egm96Y1)

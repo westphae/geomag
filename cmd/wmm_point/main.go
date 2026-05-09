@@ -178,9 +178,9 @@ func main() {
 	if hae {
 		loc = egm96.NewLocationGeodetic(latitude, longitude, altitude)
 	} else {
-		loc, err = egm96.NewLocationMSL(latitude, longitude, altitude)
-		if err != nil {
-			fmt.Printf("Error making location: %s\n", err)
+		if loc, err = egm96.NewLocationMSL(latitude, longitude, altitude); err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "Error making location: %s\n", err)
+			return
 		}
 	}
 	mf, err := model.MagneticField(loc, wmm.DecimalYear(dYear).ToTime())

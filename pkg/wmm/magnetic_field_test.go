@@ -26,6 +26,57 @@ func testDiff(name string, actual, expected float64, eps float64, t *testing.T) 
 	t.Errorf("%s%s incorrect: expected %6.4f, got %6.4f%s", red, name, expected, actual, reset)
 }
 
+// TestMagneticFieldGetters exercises every public scalar getter on
+// MagneticField against a single known fixture row from NOAA's WMM2025
+// test vectors. The full integration tests in TestAll20XXTestValuesFromPaper
+// validate the math; this test exists so a regression in any individual
+// accessor (D, I, F, H, X, Y, Z, dD, dI, dF, dH, dX, dY, dZ, ErrX/Y/Z/H/F/I)
+// fails on its own with a clear name.
+func TestMagneticFieldGetters(t *testing.T) {
+	// Row 1 of WMM2025_TEST_VALUES.txt:
+	// year=2025.0, alt=28 km, lat=89, lng=-121
+	// expected: D=-99.77, I=88.47, H=1504.298, X=-255.389, Y=-1482.461,
+	//           Z=56194.289, F=56214.420
+	// secular: dD=2.49, dI=-0.01, dH=10.29, dX=62.72, dY=-21.24, dZ=18.08, dF=18.34
+	if err := LoadWMMCOF("testdata/WMM2025.COF"); err != nil {
+		t.Fatalf("LoadWMMCOF: %v", err)
+	}
+	loc := egm96.NewLocationGeodetic(89, -121, 28*1000)
+	mf, _ := CalculateWMMMagneticField(loc, DecimalYear(2025.0).ToTime())
+
+	// Component getters
+	testDiff("D", mf.D(), -99.77, 0.005, t)
+	testDiff("I", mf.I(), 88.47, 0.005, t)
+	testDiff("H", mf.H(), 1504.298, 0.05, t)
+	testDiff("F", mf.F(), 56214.420, 0.05, t)
+
+	xE, yE, zE, dxE, dyE, dzE := mf.Ellipsoidal()
+	testDiff("X", xE, -255.389, 0.05, t)
+	testDiff("Y", yE, -1482.461, 0.05, t)
+	testDiff("Z", zE, 56194.289, 0.05, t)
+
+	// Secular variation
+	testDiff("DD", mf.DD(), 2.491706, 0.05, t)
+	testDiff("DI", mf.DI(), -0.009987, 0.05, t)
+	testDiff("DH", mf.DH(), 10.286, 0.05, t)
+	testDiff("DF", mf.DF(), 18.344, 0.05, t)
+	testDiff("DX", dxE, 62.724, 0.05, t)
+	testDiff("DY", dyE, -21.243, 0.05, t)
+	testDiff("DZ", dzE, 18.075, 0.05, t)
+
+	// Error model getters (WMM2025 published values)
+	testDiff("ErrX", mf.ErrX(), 137, 1e-9, t)
+	testDiff("ErrY", mf.ErrY(), 89, 1e-9, t)
+	testDiff("ErrZ", mf.ErrZ(), 141, 1e-9, t)
+	testDiff("ErrH", mf.ErrH(), 133, 1e-9, t)
+	testDiff("ErrF", mf.ErrF(), 138, 1e-9, t)
+	testDiff("ErrI", mf.ErrI(), 0.20, 1e-9, t)
+	// ErrD is location-dependent; just sanity-check it's a positive finite number.
+	if e := mf.ErrD(); !(e > 0 && e < 100) {
+		t.Errorf("ErrD = %v; expected something positive and bounded", e)
+	}
+}
+
 func TestMagneticFieldFromPaperDetail(t *testing.T) {
 	// Test values in paper are only for original version of WMM-2015
 	_ = LoadWMMCOF("testdata/WMM2015v1.COF")

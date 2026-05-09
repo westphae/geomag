@@ -25,15 +25,23 @@ func (p Polynomial) Evaluate(x float64) (y float64) {
 	return y
 }
 
-// Derivative calculates the polynomial corresponding to the nth derivative of the input polynomial.
+// Derivative calculates the polynomial corresponding to the nth derivative
+// of the input polynomial. n must be non-negative; n=0 returns p unchanged.
+// For negative n, returns p unchanged (rather than recursing forever or
+// producing a zero polynomial of nonsensical degree).
 func (p Polynomial) Derivative(n int) (q Polynomial) {
-	if n==1 {
+	if n <= 0 {
+		return p
+	}
+	if n == 1 {
+		// Differentiating a constant (or empty polynomial) yields 0.
+		if len(p.c) <= 1 {
+			return NewPolynomial([]float64{0})
+		}
 		q.c = make([]float64, len(p.c)-1)
-
 		for m := 1; m < len(p.c); m++ {
 			q.c[m-1] = float64(m) * p.c[m]
 		}
-
 		return q
 	}
 
