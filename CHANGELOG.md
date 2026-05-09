@@ -8,6 +8,87 @@ This project uses a year-based versioning scheme on top of [SemVer](https://semv
 WMM2025, `v1.2030.x` for the next NOAA release, …); **PATCH** increments
 within a model era for data reissues, code fixes, or improvements.
 
+## [v1.2025.4] — 2026-05-09
+
+Performance release — magnetic-field evaluation is **roughly 1.8× faster
+for WMMHR and 1.3× faster for standard WMM**, and the per-record getter
+chain that batch tools (`wmm_file`, `wmm_grid`) walk for every output
+row is **~7.8× faster**. No API change, no tolerance change, no model
+update. Existing tests pass within the unchanged 0.05 nT / 0.005°
+tolerance.
+
+### Changed (perf)
+
+Measured on Apple M1 Pro / Go 1.26, `go test -bench=. -benchtime=2s`:
+
+| Benchmark | Before | After | Delta |
+|---|---|---|---|
+| `BenchmarkMagneticField_WMM` (uncached) | 3,322 ns | 2,620 ns | **1.27×** |
+| `BenchmarkMagneticField_WMMHR` (uncached) | 264,099 ns | 147,367 ns | **1.79×** |
+| `BenchmarkGrid_WMM` (5×5 grid) | 82,371 ns | 65,783 ns | **1.25×** |
+| `BenchmarkGrid_WMMHR` (5×5 grid) | 6,780,129 ns | 3,831,891 ns | **1.77×** |
+| `BenchmarkGetters` (D, I, F, H, dD, dI, dH, dF, GV, ErrD, Ellipsoidal) | 984 ns | 126 ns | **7.81×** |
+
+Four optimizations, all in `pkg/wmm`:
+
+1. **Iterative power chain.** `computeAtValidDate` was calling
+   `polynomial.Pow(AGeo/hh, n+2)` once per outer-loop n, with each call
+   doing O(n) multiplications — O(n²) total per location. The base value
+   is constant inside the loop, so we now compute the chain
+   incrementally: `pwrs[n+1] = pwrs[n] * (AGeo/hh)`, O(n) total.
+
+2. **sin/cos angle-addition recurrence.** The inner loop was calling
+   `math.Sin(mf*lambda)` and `math.Cos(mf*lambda)` O(n²) times per
+   evaluation. Now precomputed via the standard
+   `sin((m+1)λ) = sin(mλ)cos(λ) + cos(mλ)sin(λ)` recurrence in O(n)
+   library-trig calls plus O(n) multiplies, then table-lookup in the
+   inner loop. Replaces ~18,000 trig library calls per WMMHR evaluation
+   with ~270.
+
+3. **Crustal-field secular-variation skip.** WMMHR rows n=16..133 have
+   dG=dH=0 (the crustal field is static). The inner loop was still
+   computing `f.dx += ...`, `f.dy += ...`, `f.dz += ...` for each of
+   those terms — multiplying by zero. New `Model.secVarMaxN` field is
+   populated at parse time as the largest n where any (n,m) has nonzero
+   dG or dH; the inner loop hoists `hasSecVar := n <= secVarMaxN` once
+   per outer-n iteration and conditionally skips the secular-variation
+   block. Standard WMM is unaffected (every term has secular variation,
+   branch always takes the same way and is well-predicted).
+
+4. **Ellipsoidal cache on `MagneticField`.** Six new float64 fields
+   (`xE`, `yE`, `zE`, `dxE`, `dyE`, `dzE`) populated once in
+   `(*Model).MagneticField` after the spherical-axis sum. The seven
+   ellipsoidal-derived getters (`H`, `D`, `I`, `DH`, `DD`, `DI`, `DF`,
+   plus `GV` and `ErrD` which call them) become direct field reads
+   instead of triggering the spherical→ellipsoidal rotation each time.
+   Most impactful for batch tools — `wmm_file` reads 11 getters per
+   result line.
+
+   One caveat: callers that construct a `MagneticField` and then read
+   only `Spherical()` (not `Ellipsoidal()` or any derived value) pay
+   the ~90 ns cost of the eager rotation regardless. The
+   `BenchmarkMagneticField_WMMHR_Cached` benchmark shows this as
+   156 ns → 247 ns. For typical batch use this is more than offset by
+   the getter-chain savings.
+
+### Added
+
+- `pkg/wmm/bench_test.go` and `pkg/wmm/wmmhr/bench_test.go` with
+  `BenchmarkMagneticField_*`, `BenchmarkGetters`, `BenchmarkGrid_*`,
+  `BenchmarkParseLoad`, and a `BenchmarkMagneticField_WMMHR_Cached`
+  for measuring the per-location-cache hit cost.
+
+### Notes
+
+- `MagneticField` grows from ~88 bytes to ~136 bytes due to the six
+  cached ellipsoidal float64s. Negligible for the per-call values our
+  callers deal with.
+- `polynomial.SchmidtNormalizedALFTable` still allocates `preSqr`,
+  `f1`, `f2`, `P`, `dP` per call (~321 KB / 540 allocs for WMMHR). A
+  follow-up release will explore Model-resident scratch buffers
+  (estimated additional ~3-5% on top of these wins) once benchmark
+  numbers warrant it.
+
 ## [v1.2025.3] — 2026-05-09
 
 Adds high-resolution WMMHR2025 support as a sibling to the existing
