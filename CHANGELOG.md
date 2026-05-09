@@ -8,7 +8,10 @@ This project uses a year-based versioning scheme on top of [SemVer](https://semv
 WMM2025, `v1.2030.x` for the next NOAA release, …); **PATCH** increments
 within a model era for data reissues, code fixes, or improvements.
 
-## [Unreleased]
+## [v1.2025.1] — 2026-05-09
+
+Patch release sweeping up four open bugs (#1, #3, #4, #5/#7) and adding
+CI. No coefficient changes; WMM2025 model is unchanged from v1.2025.0.
 
 ### Fixed
 
@@ -31,6 +34,8 @@ within a model era for data reissues, code fixes, or improvements.
   slice assignment in the loader. Now wrapped in `sync.Once`. Added
   `TestConcurrentHeightAboveMSL` (64 goroutines through `HeightAboveMSL`)
   which trips the race detector reliably without the fix.
+- Lint findings from the new CI: unchecked `f.Close` in `LoadModel`,
+  ineffectual `lng` assignment in a test.
 
 ### Added
 
@@ -43,6 +48,16 @@ within a model era for data reissues, code fixes, or improvements.
   `errcheck`, `gosimple`, `govet`, `ineffassign`, `staticcheck`, and
   `unused`. Closing the gap that allowed PR #8's corrupt bindata to ship
   in the v1.0.x line.
+- Install sections in the top-level [README](README.md), [pkg/wmm/README](pkg/wmm/README.md),
+  and [pkg/egm96/README](pkg/egm96/README.md). Closes #5 and the install
+  half of #7.
+
+### Changed
+
+- `cmd/wmm_point` migrated from the deprecated `wmm.LoadWMMCOF` /
+  package-level vars to the `wmm.LoadModel` / `wmm.Default()` /
+  `(*Model).MagneticField` API. Output unchanged; the CLI now serves as
+  a working example of the recommended public API.
 
 ## [v1.2025.0] — 2026-05-09
 
