@@ -8,6 +8,57 @@ This project uses a year-based versioning scheme on top of [SemVer](https://semv
 WMM2025, `v1.2030.x` for the next NOAA release, …); **PATCH** increments
 within a model era for data reissues, code fixes, or improvements.
 
+## [v1.2025.2] — 2026-05-09
+
+Patch release adding the two CLI commands missing from the v1.0.x line
+(`wmm_grid`, `wmm_file`) and a small batch of audit-driven safety fixes.
+No coefficient changes; WMM2025 model is unchanged.
+
+### Added
+
+- **`cmd/wmm_grid`** — generates a 4-D grid of magnetic field values
+  over latitude, longitude, altitude, and time, evaluating one chosen
+  output element (`D`, `I`, `F`, `H`, `X`, `Y`, `Z`, `dD`, `dI`, `dF`,
+  `dH`, `dX`, `dY`, `dZ`) per grid point. Flag-driven for scriptability;
+  matches NOAA's "collapse an axis by setting start=end" convention.
+  Closes the README's "coming soon" promise that has been there since
+  2016.
+- **`cmd/wmm_file`** — batch-processes a coordinate file matching
+  NOAA's reference syntax (`wmm_file f IN OUT`, with optional `e` /
+  `--Errors` to append uncertainty columns). Output is byte-for-byte
+  identical to NOAA's reference for `K` (km) and `M` (meters) altitude
+  inputs; `F` (feet) inputs differ by ≲0.1 nT because we use the exact
+  international-foot conversion (0.3048) where NOAA's reference C source
+  has a transcription error in `wmm_file.c:606`. The discrepancy is far
+  below the WMM uncertainty budget.
+- `parsing.ParseNOAAAltitude` (in `internal/parsing`) — parses NOAA's
+  `K`/`M`/`F` prefix convention and returns a value in meters.
+- `TestMagneticFieldGetters` — direct unit test for every public scalar
+  getter on `MagneticField` (D, I, F, H, X, Y, Z, secular variation,
+  errors). The full `TestAll20XXTestValuesFromPaper` integration tests
+  validate the math; this test exists so a regression in any individual
+  accessor fails on its own with a clear name.
+- `TestBoundaryCorners` and `TestAgainstNOAASample` — boundary-condition
+  tests in `pkg/egm96` and a regression test diffing `wmm_file` output
+  against NOAA's published `sample_output.txt`.
+
+### Fixed
+
+- **EGM96 bilinear-bounds off-by-one** in [pkg/egm96/egm96.go](pkg/egm96/egm96.go).
+  The bounds checks in `NewLocationMSL`/`HeightAboveMSL`/`NearestEGM96GridPoint`
+  used `nLng > egm96XN` / `nLat > egm96YN`, but the bilinear interpolation
+  reads `[nLng+1]` and `[(nLat+1)*egm96XN]` — so the largest valid index
+  is `egm96XN-2` / `egm96YN-2`. Tightened to match. Latency-masked by the
+  v1.2025.1 longitude normalization, but unsafe at boundary latitudes.
+- **CLI error propagation** in [cmd/wmm_point/main.go](cmd/wmm_point/main.go).
+  A failure from `egm96.NewLocationMSL` was logged but execution continued
+  with the zero-value `Location`, producing nonsense output. Now returns
+  immediately and exits non-zero on stderr.
+- **`polynomial.Derivative(n)` guard** for non-positive n. Previously
+  documented as caller-responsibility; calling with `n=-1` would recurse
+  forever. Now returns the input unchanged for `n<=0`, and the n=1 path
+  handles the `len(p.c) <= 1` (constant or empty) case explicitly.
+
 ## [v1.2025.1] — 2026-05-09
 
 Patch release sweeping up four open bugs (#1, #3, #4, #5/#7) and adding

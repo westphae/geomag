@@ -31,7 +31,7 @@ then `import "github.com/westphae/geomag/pkg/wmm"` and/or
 below.
 
 ## Commands
-geomag provides two command line programs, modeled after the command line programs in the official NOAA software.
+geomag provides three command line programs, modeled after the command line programs in the official NOAA software.
 
 `wmm_point` calculates magnetic field values for a single location and time:
 ```
@@ -56,7 +56,46 @@ Date:           2019.5
        Grid Variation =  -1º 59'
 ```
 
-`wmm_grid` is coming soon.  It will calculate magnetic field values for a grid of locations and/or times.
+`wmm_file` batch-processes a coordinate file (one record per line) into a
+matching output file. Input format mirrors NOAA's `wmm_file` reference:
+
+```
+> cat coords.txt
+2025.5 E K100  70.3 30.8
+2026.5 E M1042 70.3 30.8
+2027.5 E F30000 70.3 30.8
+> wmm_file f coords.txt out.txt
+> head -2 out.txt
+Date Coord-System Altitude Latitude Longitude D_deg D_min I_deg I_min H_nT X_nT Y_nT Z_nT F_nT dD_min dI_min dH_nT dX_nT dY_nT dZ_nT dF_nT
+2025.5 E K100 70.3 30.8    16d 48m    79d 13m    9827.3   9407.8   2840.6  51603.9  52531.3    15.0       1.4        -11.5    -23.4     37.7     51.1     48.1
+```
+
+Each input line is `<date> <coord-system> <altitude> <lat> <lng>` where
+`<coord-system>` is `E` (height above WGS84 ellipsoid) or `M` (height
+above mean sea level), and `<altitude>` is a single-character unit prefix
+(`K`=km, `M`=meters, `F`=feet) followed by a signed decimal magnitude.
+Add `e` (or `--Errors`) between the `f` and the input filename to append
+seven uncertainty columns.
+
+`wmm_grid` generates a 4-D grid of magnetic field values over latitude,
+longitude, altitude, and time, evaluating one chosen output element at
+each grid point:
+
+```
+> wmm_grid --lat=-80,80,40 --lng=0,0,0 --alt=0,0,0 --date=2026,2026,0 --element=F --errors
+-80 0 0 2026 46061.398... 138
+-40 0 0 2026 23369.279... 138
+0 0 0 2026 31813.131... 138
+40 0 0 2026 45193.628... 138
+80 0 0 2026 55208.584... 138
+```
+
+Each axis flag takes a comma-separated `START,END,STEP` triple. Setting
+START=END collapses the axis (e.g. `--alt=0,0,0` for sea level only,
+`--date=2026,2026,0` for a single instant). `--element` accepts D, I, F,
+H, X, Y, Z, dD, dI, dF, dH, dX, dY, dZ. `--errors` adds an uncertainty
+column (only for the static-field elements). Output goes to stdout
+unless you pass `--output=PATH`.
 
 ## Packages
 Two packages are provided by this library:
