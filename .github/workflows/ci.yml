@@ -35,9 +35,9 @@ jobs:
         with:
           go-version: stable
           cache: true
-      - uses: golangci/golangci-lint-action@v6
+      - uses: golangci/golangci-lint-action@v8
         with:
-          # Pin to a v2 release; the action's `version: latest` resolves to a
-          # baked-in v1 default, which rejects our v2 config schema.
+          # v8 of the action is the first release that supports golangci-lint v2,
+          # which is what our .golangci.yml is written against.
           version: v2.12.2
           args: --timeout=3m
