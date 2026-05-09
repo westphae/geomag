@@ -2,11 +2,23 @@ package polynomial
 
 // Factorial calculates the factorial of the input integer.
 // Doesn't handle negative numbers gracefully, up to user to not pass them.
-// Handles up to n=20, beyond that it will overflow.
+// Handles up to n=20, beyond that it will overflow. For larger n use
+// FactorialFloat.
 func Factorial(n int) int {
 	r := 1
 	for i := 2; i <= n; i++ {
 		r *= i
+	}
+	return r
+}
+
+// FactorialFloat is the float64-valued counterpart of Factorial. Handles
+// up to n≈170 before exceeding float64's max (~1.8e308). For n=0 or n=1
+// returns 1.0 (an empty product).
+func FactorialFloat(n int) float64 {
+	r := 1.0
+	for i := 2; i <= n; i++ {
+		r *= float64(i)
 	}
 	return r
 }
