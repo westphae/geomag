@@ -29,6 +29,7 @@ type Model struct {
 	cHnm      [][]float64
 	cDGnm     [][]float64
 	cDHnm     [][]float64
+	errors    ErrorModel // populated from defaultErrorModels[cofName] at load; zero if unknown
 
 	cacheMu   sync.Mutex
 	haveCache bool
@@ -81,6 +82,23 @@ func (m *Model) ValidDate() time.Time {
 	return m.validDate
 }
 
+// ErrorModel returns the model's published global-average uncertainty values.
+// For models whose COF name is not in the package's lookup table, this returns
+// a zero ErrorModel until SetErrorModel is called.
+func (m *Model) ErrorModel() ErrorModel {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.errors
+}
+
+// SetErrorModel overrides the model's error model. Use this for custom or
+// future WMM releases not in the package's defaultErrorModels lookup.
+func (m *Model) SetErrorModel(em ErrorModel) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.errors = em
+}
+
 // Coefficients returns the spherical-harmonic coefficients G(n,m), H(n,m) and
 // their rates of change dG(n,m), dH(n,m) at time t.
 //
@@ -129,6 +147,7 @@ func (m *Model) MagneticField(loc egm96.Location, t time.Time) (MagneticField, e
 	m.mu.RLock()
 	validDate := m.validDate
 	epoch := m.epoch
+	errors := m.errors
 	m.mu.RUnlock()
 
 	var err error
@@ -139,13 +158,14 @@ func (m *Model) MagneticField(loc egm96.Location, t time.Time) (MagneticField, e
 
 	dt := float64(TimeToDecimalYears(t) - TimeToDecimalYears(validDate))
 	field := MagneticField{
-		l:  loc,
-		x:  cached.x + dt*cached.dx,
-		y:  cached.y + dt*cached.dy,
-		z:  cached.z + dt*cached.dz,
-		dx: cached.dx,
-		dy: cached.dy,
-		dz: cached.dz,
+		l:      loc,
+		x:      cached.x + dt*cached.dx,
+		y:      cached.y + dt*cached.dy,
+		z:      cached.z + dt*cached.dz,
+		dx:     cached.dx,
+		dy:     cached.dy,
+		dz:     cached.dz,
+		errors: errors,
 	}
 	return field, err
 }
@@ -210,6 +230,7 @@ func (m *Model) parse(r io.Reader) error {
 	if m.validDate, err = time.Parse("01/02/2006", dat[2]); err != nil {
 		return fmt.Errorf("bad header valid date: %w", err)
 	}
+	m.errors = defaultErrorModels[m.cofName] // zero ErrorModel if unknown
 
 	m.cGnm = make([][]float64, MaxLegendreOrder+1)
 	m.cGnm[0] = []float64{0}

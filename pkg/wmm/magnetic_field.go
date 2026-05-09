@@ -21,15 +21,7 @@ import (
 )
 
 const (
-	AGeo  = 6371200 // Geomagnetic Reference Radius
-	errX  = 137     // WMM global average X error, nT
-	errY  = 89      // WMM global average Y error, nT
-	errZ  = 141     // WMM global average Z error, nT
-	errH  = 133     // WMM global average H error, nT
-	errF  = 138     // WMM global average F error, nT
-	errI  = 0.20    // WMM global average I error, º
-	errDA = 0.26    // WMM rough global average D error away from poles, º
-	errDB = 5417    // WMM average H uncertainty scale near the poles, nT
+	AGeo = 6371200 // Geomagnetic Reference Radius
 )
 
 // MagneticField represents a geomagnetic field and its rate of change.
@@ -37,6 +29,14 @@ type MagneticField struct {
 	l          egm96.Location
 	x, y, z    float64
 	dx, dy, dz float64
+	errors     ErrorModel // copied from the source Model at evaluation time
+}
+
+// ErrorModel returns the global-average uncertainty values for the WMM
+// release that produced this field. See ErrorModel for the meaning of each
+// component.
+func (m MagneticField) ErrorModel() ErrorModel {
+	return m.errors
 }
 
 // Ellipsoidal returns the magnetic field in ellipsoidal coordinate axes.
@@ -179,53 +179,42 @@ func (m MagneticField) DGV() (f float64) {
 // ErrX returns the uncertainty in the X component of the magnetic field.
 //
 // The WMM specifies this uncertainty as an average over the global surface.
-func (m MagneticField) ErrX() (f float64) {
-	return errX
-}
+func (m MagneticField) ErrX() float64 { return m.errors.X }
 
 // ErrY returns the uncertainty in the Y component of the magnetic field.
 //
 // The WMM specifies this uncertainty as an average over the global surface.
-func (m MagneticField) ErrY() (f float64) {
-	return errY
-}
+func (m MagneticField) ErrY() float64 { return m.errors.Y }
 
 // ErrZ returns the uncertainty in the Z component of the magnetic field.
 //
 // The WMM specifies this uncertainty as an average over the global surface.
-func (m MagneticField) ErrZ() (f float64) {
-	return errZ
-}
+func (m MagneticField) ErrZ() float64 { return m.errors.Z }
 
 // ErrF returns the uncertainty in the total magnetic field F.
 //
 // The WMM specifies this uncertainty as an average over the global surface.
-func (m MagneticField) ErrF() (f float64) {
-	return errF
-}
+func (m MagneticField) ErrF() float64 { return m.errors.F }
 
 // ErrH returns the uncertainty in the horizontal component H of the magnetic field.
 //
 // The WMM specifies this uncertainty as an average over the global surface.
-func (m MagneticField) ErrH() (f float64) {
-	return errH
-}
+func (m MagneticField) ErrH() float64 { return m.errors.H }
 
 // ErrI returns the uncertainty in the inclination I of the magnetic field.
 //
 // The WMM specifies this uncertainty as an average over the global surface.
-func (m MagneticField) ErrI() (f float64) {
-	return errI
-}
+func (m MagneticField) ErrI() float64 { return m.errors.I }
 
-// ErrD returns the uncertainty in the Declination of the magnetic field at the given location.
+// ErrD returns the uncertainty in the Declination of the magnetic field at
+// the given location.
 //
 // All other reported model uncertainties are given as the surface average.
-// Because the H field can be close to zero near the poles,
-// the D uncertainty can become very large and must be reported by location.
-func (m MagneticField) ErrD() (f float64) {
+// Because the H field can be close to zero near the poles, the D uncertainty
+// can become very large and must be reported by location.
+func (m MagneticField) ErrD() float64 {
 	h := m.H()
-	return math.Sqrt(errDA*errDA + errDB*errDB/(h*h))
+	return math.Sqrt(m.errors.DA*m.errors.DA + m.errors.DB*m.errors.DB/(h*h))
 }
 
 // CalculateWMMMagneticField returns the magnetic field at the input location
