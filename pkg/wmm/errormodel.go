@@ -26,6 +26,7 @@ type ErrorModel struct {
 // will leave the resulting *Model with a zero ErrorModel; callers can
 // supply one explicitly via (*Model).SetErrorModel.
 var defaultErrorModels = map[string]ErrorModel{
-	"WMM-2025": {X: 137, Y: 89, Z: 141, H: 133, F: 138, I: 0.20, DA: 0.26, DB: 5417},
-	"WMM-2020": {X: 131, Y: 94, Z: 157, H: 128, F: 148, I: 0.21, DA: 0.26, DB: 5625},
+	"WMM-2025":   {X: 137, Y: 89, Z: 141, H: 133, F: 138, I: 0.20, DA: 0.26, DB: 5417},
+	"WMM-2020":   {X: 131, Y: 94, Z: 157, H: 128, F: 148, I: 0.21, DA: 0.26, DB: 5625},
+	"WMMHR-2025": {X: 135, Y: 85, Z: 134, H: 130, F: 134, I: 0.19, DA: 0.25, DB: 5205},
 }
