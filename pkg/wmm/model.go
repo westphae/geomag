@@ -25,6 +25,7 @@ type Model struct {
 	epoch     DecimalYear
 	cofName   string
 	validDate time.Time
+	maxN      int // largest n seen in the COF; 12 for standard WMM, 133 for WMMHR
 	cGnm      [][]float64
 	cHnm      [][]float64
 	cDGnm     [][]float64
@@ -82,6 +83,14 @@ func (m *Model) ValidDate() time.Time {
 	return m.validDate
 }
 
+// MaxN returns the largest spherical-harmonic degree present in the loaded
+// model. Standard WMM is 12; WMMHR is 133.
+func (m *Model) MaxN() int {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.maxN
+}
+
 // ErrorModel returns the model's published global-average uncertainty values.
 // For models whose COF name is not in the package's lookup table, this returns
 // a zero ErrorModel until SetErrorModel is called.
@@ -106,15 +115,15 @@ func (m *Model) SetErrorModel(em ErrorModel) {
 // period, an error is returned. The returned values are still computed in the
 // validity-period case.
 func (m *Model) Coefficients(n, mm int, t time.Time) (g, h, dg, dh float64, err error) {
-	if n < 0 || n > MaxLegendreOrder || mm < 0 || mm > MaxLegendreOrder {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if n < 0 || n > m.maxN || mm < 0 || mm > m.maxN {
 		return 0, 0, 0, 0, fmt.Errorf("n, m = (%d,%d) must be between 0 and %d",
-			n, mm, MaxLegendreOrder)
+			n, mm, m.maxN)
 	}
 	if mm > n {
 		return 0, 0, 0, 0, fmt.Errorf("m=%d must be less than n=%d", mm, n)
 	}
-	m.mu.RLock()
-	defer m.mu.RUnlock()
 	if t.Sub(m.validDate) < 0 || TimeToDecimalYears(t) > m.epoch+5 {
 		err = fmt.Errorf("requested date %v is outside of validity period beginning %v of WMM.COF file",
 			t, m.validDate)
@@ -181,20 +190,27 @@ func (m *Model) computeAtValidDate(loc egm96.Location) MagneticField {
 	phi, lambda, hh := loc.Spherical()
 	sinPhi := math.Sin(phi)
 	cosPhi := math.Cos(phi)
+
+	// Schmidt-normalized associated Legendre table (and its φ-derivative)
+	// computed via Holmes & Featherstone's stable recurrence. This replaces
+	// the older per-(n,m) LegendreFunction differentiation, which suffered
+	// catastrophic cancellation above n≈20 — fine for standard WMM but
+	// useless at WMMHR's degree 133.
+	P, dP := polynomial.SchmidtNormalizedALFTable(sinPhi, m.maxN)
+	if P == nil {
+		// At |lat| == 90° the recurrence's dP/dφ is undefined; fall back
+		// to whatever the cache had (zero-init MagneticField).
+		return f
+	}
+
 	dtRef := float64(TimeToDecimalYears(m.validDate) - m.epoch)
-	for n := 1; n <= MaxLegendreOrder; n++ {
+	for n := 1; n <= m.maxN; n++ {
 		nn := float64(n + 1)
 		pwr := polynomial.Pow(AGeo/hh, n+2)
 		for mm := 0; mm <= n; mm++ {
 			mf := float64(mm)
-			p := polynomial.LegendreFunction(n, mm, sinPhi)
-			q := polynomial.LegendreFunction(n+1, mm, sinPhi)
-			if mm > 0 {
-				s := math.Sqrt(2 / polynomial.FactorialRatioFloat(n+mm, n-mm))
-				p *= s
-				q *= s
-			}
-			dp := nn*math.Tan(phi)*p - (nn-mf)/cosPhi*q
+			p := P[n][mm]
+			dp := dP[n][mm]
 			g := m.cGnm[n][mm] + dtRef*m.cDGnm[n][mm]
 			h := m.cHnm[n][mm] + dtRef*m.cDHnm[n][mm]
 			dg := m.cDGnm[n][mm]
@@ -232,16 +248,14 @@ func (m *Model) parse(r io.Reader) error {
 	}
 	m.errors = defaultErrorModels[m.cofName] // zero ErrorModel if unknown
 
-	m.cGnm = make([][]float64, MaxLegendreOrder+1)
-	m.cGnm[0] = []float64{0}
-	m.cHnm = make([][]float64, MaxLegendreOrder+1)
-	m.cHnm[0] = []float64{0}
-	m.cDGnm = make([][]float64, MaxLegendreOrder+1)
-	m.cDGnm[0] = []float64{0}
-	m.cDHnm = make([][]float64, MaxLegendreOrder+1)
-	m.cDHnm[0] = []float64{0}
+	// Initialize the n=0 row only; subsequent rows are allocated as the
+	// parser sees them, supporting arbitrary degrees up to whatever the
+	// COF declares. WMM is degree 12; WMMHR is degree 133.
+	m.cGnm = [][]float64{{0}}
+	m.cHnm = [][]float64{{0}}
+	m.cDGnm = [][]float64{{0}}
+	m.cDHnm = [][]float64{{0}}
 
-	curN := 0
 	for scanner.Scan() {
 		s := strings.Fields(scanner.Text())
 		if len(s) < 6 {
@@ -255,12 +269,18 @@ func (m *Model) parse(r io.Reader) error {
 		if err != nil {
 			return fmt.Errorf("bad m value: %w", err)
 		}
-		if n > curN {
-			m.cGnm[n] = make([]float64, n+1)
-			m.cHnm[n] = make([]float64, n+1)
-			m.cDGnm[n] = make([]float64, n+1)
-			m.cDHnm[n] = make([]float64, n+1)
-			curN = n
+		// Grow each slice up through index n, allocating the inner row
+		// for the new top-level index. Idempotent on re-visit (no
+		// reallocation when n stays the same).
+		for len(m.cGnm) <= n {
+			next := len(m.cGnm)
+			m.cGnm = append(m.cGnm, make([]float64, next+1))
+			m.cHnm = append(m.cHnm, make([]float64, next+1))
+			m.cDGnm = append(m.cDGnm, make([]float64, next+1))
+			m.cDHnm = append(m.cDHnm, make([]float64, next+1))
+		}
+		if n > m.maxN {
+			m.maxN = n
 		}
 		if m.cGnm[n][mm], err = strconv.ParseFloat(s[2], 64); err != nil {
 			return fmt.Errorf("bad Gnm value: %w", err)

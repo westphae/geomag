@@ -7,9 +7,12 @@ import (
 	"time"
 )
 
-const (
-	MaxLegendreOrder = 12
-)
+// MaxLegendreOrder is the spherical-harmonic degree of the standard WMM
+// (n=m=12). It's exposed for documentation and back-compat: validation
+// inside *Model now uses the per-Model max degree discovered at parse
+// time, so loading a higher-degree variant such as WMMHR (n=m=133) is
+// supported.
+const MaxLegendreOrder = 12
 
 //go:embed embedded/WMM.COF
 var defaultCOF []byte
