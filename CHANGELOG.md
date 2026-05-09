@@ -8,6 +8,69 @@ This project uses a year-based versioning scheme on top of [SemVer](https://semv
 WMM2025, `v1.2030.x` for the next NOAA release, …); **PATCH** increments
 within a model era for data reissues, code fixes, or improvements.
 
+## [v1.2025.3] — 2026-05-09
+
+Adds high-resolution WMMHR2025 support as a sibling to the existing
+WMM2025 (degree 12) model. Library users opt in by importing the new
+`pkg/wmm/wmmhr` sub-package (no cost if you don't); CLI users pass `--hr`
+on `wmm_point`, `wmm_grid`, or `wmm_file` (≲4% binary-size impact, or
+opt out with `make install-lean` / `-tags wmm_no_hr`).
+
+### Added
+
+- **`pkg/wmm/wmmhr`** sub-package — embeds NOAA's WMMHR2025 coefficients
+  (≈530 KB) and exposes `New() (*wmm.Model, error)` and `Default() *wmm.Model`
+  constructors that return the same `*wmm.Model` type as standard WMM.
+  Importing this package is the trigger for HR data in your binary; library
+  consumers who only want standard WMM never see the cost.
+- **`--hr` flag** on `cmd/wmm_point`, `cmd/wmm_grid`, `cmd/wmm_file` —
+  selects the embedded WMMHR model at runtime. Mutually exclusive with
+  `--cof_file`. Default builds bundle both models; `make install-lean`
+  (or `go install -tags wmm_no_hr ...`) produces lean binaries that
+  omit the HR data and error on `--hr` with a clear message.
+- **`Makefile`** with `install`, `install-lean`, `test`, `test-lean`,
+  `vet`, `lint` targets — convenience wrappers around `go` commands and
+  the `wmm_no_hr` build tag.
+- **`(*wmm.Model).MaxN()`** accessor — returns the largest spherical-
+  harmonic degree present in the loaded model (12 for standard WMM, 133
+  for WMMHR).
+- **`polynomial.SchmidtNormalizedALFTable(x, nMax)`** — new public
+  function returning the full triangular table of Schmidt semi-normalized
+  associated Legendre functions and their latitude derivatives, computed
+  via Holmes & Featherstone 2002's stable recurrence. The geomagnetic
+  spherical-harmonic loop in `pkg/wmm` now uses this instead of the
+  `LegendreFunction(n, m, x)` differentiation path.
+- **`polynomial.FactorialFloat(n int)`** — float64 counterpart of the
+  existing `Factorial`. The int form silently overflows above n=20;
+  `LegendrePolynomial` now uses the float form, which is correct up to
+  n≈170.
+- New tests: `TestAllWMMHR2025TestValues` (in `pkg/wmm`), three sanity
+  tests in `pkg/wmm/wmmhr/wmmhr_test.go`, `TestAgainstNOAAHRSample` in
+  `cmd/wmm_file/main_hr_test.go`. CI gains a `test-lean` job that runs
+  `go vet`, `go build`, and `go test` with `-tags wmm_no_hr`.
+
+### Changed
+
+- **`(*wmm.Model)` parser is now degree-agnostic.** The
+  `MaxLegendreOrder = 12` constant is retained for documentation but no
+  longer enforced as a runtime cap; the `Model` carries its own `maxN`
+  populated at parse time. Allows loading any well-formed COF file
+  regardless of the spherical-harmonic degree it declares.
+- **Top-level [README](README.md)** — adds a "WMM vs. WMMHR" section,
+  documents the `--hr` flag and the lean-build path.
+
+### Fixed
+
+- **Numerical stability for high spherical-harmonic degree.** The previous
+  `LegendreFunction(n, m, x)` path computed the n-th Legendre polynomial,
+  m-differentiated it, then evaluated. For n>~20 the polynomial
+  coefficients overflow `int64` factorial inputs and lose precision through
+  catastrophic cancellation when summed at x ≠ 0. The new
+  `SchmidtNormalizedALFTable` recurrence is stable for n in the thousands.
+  Standard WMM's existing test values continue to pass within the prior
+  tolerance (~0.05 nT / 0.005°); WMMHR's published test values now also
+  pass.
+
 ## [v1.2025.2] — 2026-05-09
 
 Patch release adding the two CLI commands missing from the v1.0.x line

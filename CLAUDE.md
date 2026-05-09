@@ -4,20 +4,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Module layout
 
-Standard Go module — `go.mod` declares `module github.com/westphae/geomag` at `go 1.22`. No external runtime dependencies. Embedded data files live under `pkg/wmm/embedded/WMM.COF` and `pkg/egm96/embedded/ww15mgh.grd` and are pulled in via `//go:embed`.
+Standard Go module — `go.mod` declares `module github.com/westphae/geomag` at `go 1.22`. No external runtime dependencies. Embedded data files live under `pkg/wmm/embedded/WMM.COF`, `pkg/egm96/embedded/ww15mgh.grd`, and `pkg/wmm/wmmhr/embedded/WMMHR.COF` (only pulled in by binaries that import `pkg/wmm/wmmhr`).
 
 Versioning is calendar-based on top of SemVer: **`v1.YYYY.x`** where YYYY is the WMM model year and x increments within that model era. v1.2025.0 was the WMM2025 baseline + Go modernization; subsequent v1.2025.x releases are bug fixes and enhancements within the WMM2025 era. The next major bump (`v1.2030.x`) will land when NOAA ships WMM2030. Avoid bumping to `v2.x.y` — Go's major-version-suffix rule would force every import path to change.
 
 ## Common commands
 
 ```sh
-go test ./...                                          # run all tests
-go test -race ./...                                    # with race detector
-go test ./pkg/wmm -run TestAll2025TestValuesFromPaper  # single test
-go build ./cmd/wmm_point                               # build CLI
-go run ./cmd/wmm_point N89 W121 E28 2025.0             # WMM2025 row-1 fixture
-go run ./cmd/wmm_file f IN.txt OUT.txt                 # batch processor
-go run ./cmd/wmm_grid --lat=-30,30,30 --lng=0,0,0 \
+make test                                              # full race-tests
+make test-lean                                         # also: go test -tags wmm_no_hr ./...
+make vet lint                                          # vet (default + lean) + golangci-lint
+make install                                           # install the three CLIs
+make install-lean                                      # without HR data (lighter binaries)
+go test ./...                                          # plain run all tests
+go test ./pkg/wmm -run TestAllWMMHR2025TestValues      # single WMMHR test
+go run ./cmd/wmm_point N89 W121 E28 2025.0             # WMM2025 fixture
+go run ./cmd/wmm_point --hr N89 W121 E28 2025.0        # same point, WMMHR2025
+go run ./cmd/wmm_file [--hr] f IN.txt OUT.txt          # batch processor
+go run ./cmd/wmm_grid [--hr] --lat=-30,30,30 --lng=0,0,0 \
     --alt=0,0,0 --date=2026,2026,0 --element=D         # 4-D grid sweep
 golangci-lint run ./...                                # static analysis
 ```
@@ -41,7 +45,9 @@ Three library packages plus three CLI commands:
 
 - **`pkg/polynomial`** — Legendre polynomial machinery. `LegendreFunction(n, m, x)` is the hot path: it differentiates `LegendrePolynomial(n)` `m` times and caches the result in a process-wide `sync.Map` keyed by `(n, m)`. The Schmidt semi-normalization (`sqrt(2 · (n−m)! / (n+m)!)` for m>0) is applied by the **caller** in `pkg/wmm`, not here. `Pow`/`Factorial`/`FactorialRatio*` are iterative and tolerate edge inputs (negative n, m>n) without panicking.
 
-- **`pkg/wmm`** — WMM evaluation. The primary type is `Model`, `sync.RWMutex`-guarded, holding the parsed coefficients, the published error model (loaded at parse time from `defaultErrorModels` keyed on the COF name), and a per-location cache. Construct via `NewModel()` (embedded default), `LoadModel(path)`, or `ParseModel(io.Reader)`. Methods: `Coefficients(n, m, t)`, `MagneticField(loc, t)`, `Epoch()`, `COFName()`, `ValidDate()`, `ErrorModel()`, `SetErrorModel(em)`. The package also exposes a thread-safe package-level `Default()` plus thin back-compat wrappers (`LoadWMMCOF`, `GetWMMCoefficients`, `CalculateWMMMagneticField`) and the legacy `Epoch`/`COFName`/`ValidDate` vars that mirror the default model's state. **`init()` panics if the embedded `WMM.COF` fails to parse** — a build-time invariant that prevents silent embed corruption (this is exactly the regression mode that allowed PR #8's broken bindata to ship in the v1.0.x line). Per the cache design, callers iterating over many points should make **time the innermost loop**, then height/lat/lng, to maximize hits in the per-location cache (the cache stores the spherical-harmonic sum evaluated at `validDate`, then the result is linearly time-corrected on read).
+- **`pkg/wmm`** — WMM evaluation. The primary type is `Model`, `sync.RWMutex`-guarded, holding the parsed coefficients, the published error model (loaded at parse time from `defaultErrorModels` keyed on the COF name), and a per-location cache. Construct via `NewModel()` (embedded default), `LoadModel(path)`, or `ParseModel(io.Reader)`. Methods: `Coefficients(n, m, t)`, `MagneticField(loc, t)`, `Epoch()`, `COFName()`, `ValidDate()`, `MaxN()`, `ErrorModel()`, `SetErrorModel(em)`. The package also exposes a thread-safe package-level `Default()` plus thin back-compat wrappers (`LoadWMMCOF`, `GetWMMCoefficients`, `CalculateWMMMagneticField`) and the legacy `Epoch`/`COFName`/`ValidDate` vars that mirror the default model's state. **`init()` panics if the embedded `WMM.COF` fails to parse** — a build-time invariant that prevents silent embed corruption (this is exactly the regression mode that allowed PR #8's broken bindata to ship in the v1.0.x line). Per the cache design, callers iterating over many points should make **time the innermost loop**, then height/lat/lng, to maximize hits in the per-location cache (the cache stores the spherical-harmonic sum evaluated at `validDate`, then the result is linearly time-corrected on read). The parser handles arbitrary spherical-harmonic degree (the `MaxLegendreOrder = 12` constant is documentation-only since v1.2025.3); models with degree up to ~170 are supported.
+
+- **`pkg/wmm/wmmhr`** — WMMHR (high-resolution) sibling. Embeds NOAA's WMMHR2025 coefficients (≈530 KB, degree 133) and exposes `New() (*wmm.Model, error)` and `Default() *wmm.Model` returning the same `*wmm.Model` type as standard WMM. Importing this sub-package is what pulls the HR data into a binary; library callers who don't import it pay zero cost. The CLIs (`wmm_point`, `wmm_grid`, `wmm_file`) accept `--hr` to select the embedded HR model at runtime; mutually exclusive with `--cof_file`. The `wmm_no_hr` build tag (via `make install-lean` or `go install -tags wmm_no_hr ...`) omits HR data from CLI binaries, with `--hr` then erroring with a clear message at runtime.
 
 - **`cmd/wmm_point`** — Single-point CLI. Interactive when run with no positional args; takes lat, lng, alt, date as positional args otherwise. Returns non-zero on `egm96.NewLocationMSL` failure (does not silently continue with a zero-value Location).
 

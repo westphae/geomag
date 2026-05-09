@@ -7,18 +7,22 @@ The coefficients for 2025-2029 can be downloaded at https://www.ncei.noaa.gov/pr
 
 ## Install
 
-Requires Go 1.22 or newer. The current WMM coefficients (WMM2025) are embedded
-in the package, so there is no separate data file to download.
+Requires Go 1.22 or newer. The current standard WMM coefficients (WMM2025)
+and the high-resolution WMMHR2025 coefficients are both embedded in the
+distribution, so there is no separate data file to download.
 
-To install the `wmm_point` command-line tool:
+To install the three command-line tools:
 
 ```sh
 go install github.com/westphae/geomag/cmd/wmm_point@latest
+go install github.com/westphae/geomag/cmd/wmm_grid@latest
+go install github.com/westphae/geomag/cmd/wmm_file@latest
 ```
 
-The binary lands in `$(go env GOBIN)` (or `$(go env GOPATH)/bin` if `GOBIN` is
-unset) — make sure that directory is on your `PATH`. Pin to a specific release
-by replacing `@latest` with `@v1.2025.0`, etc.
+(Or `make install` from a checkout, which does all three.) The binaries land
+in `$(go env GOBIN)` (or `$(go env GOPATH)/bin` if `GOBIN` is unset) — make
+sure that directory is on your `PATH`. Pin to a specific release by replacing
+`@latest` with `@v1.2025.2`, etc.
 
 To use the library in your own Go project:
 
@@ -27,8 +31,44 @@ go get github.com/westphae/geomag@latest
 ```
 
 then `import "github.com/westphae/geomag/pkg/wmm"` and/or
-`"github.com/westphae/geomag/pkg/egm96"`. See the per-package examples
-below.
+`"github.com/westphae/geomag/pkg/egm96"`. To use WMMHR (n=133, ~530 KB
+extra in your binary) instead of standard WMM (n=12), additionally
+import `"github.com/westphae/geomag/pkg/wmm/wmmhr"` — see the per-package
+examples below.
+
+### WMM vs. WMMHR
+
+The standard WMM models the geomagnetic field with spherical harmonics up
+to degree 12. WMMHR extends that to degree 133, capturing finer crustal-
+scale features and tightening published uncertainties (e.g. ±134 nT for F
+vs. WMM's ±138 nT). The HR model is roughly 85× more compute per
+field-evaluation but the per-location cache on `*Model` makes that
+negligible for time-sweep loops.
+
+For most navigation use cases, the standard model is fine. Reach for HR
+when computing near known crustal anomalies, when producing a
+high-resolution map, or when the tighter declination accuracy near regional
+features matters.
+
+In the CLIs, pass `--hr` to evaluate using WMMHR2025 instead of WMM2025
+(mutually exclusive with `--cof_file`). In library code, use
+`wmmhr.Default()` from the sub-package.
+
+### Lean builds (optional)
+
+The default install bundles both WMM and WMMHR data (~12 MB per CLI
+binary). If you need leaner binaries (~11.5 MB) and don't need HR
+support, build with the `wmm_no_hr` tag:
+
+```sh
+make install-lean
+# or, equivalently:
+go install -tags wmm_no_hr github.com/westphae/geomag/cmd/wmm_point@latest
+```
+
+Lean builds work as before for standard WMM. Calling `--hr` on a lean
+binary prints a clear error and exits non-zero. Most users should ignore
+this and use the regular `make install` / `go install` paths.
 
 ## Commands
 geomag provides three command line programs, modeled after the command line programs in the official NOAA software.
