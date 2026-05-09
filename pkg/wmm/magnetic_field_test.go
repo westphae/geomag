@@ -38,7 +38,7 @@ func TestMagneticFieldFromPaperDetail(t *testing.T) {
 	testDiff("h", hh, 100000.0000000000, epsM, t)
 	testDiff("t", float64(tt), 2017.5000000000, epsM, t)
 
-	lat, lng, hh = loc.Spherical()
+	lat, _, hh = loc.Spherical()
 	testDiff("phi-prime", lat, -1.3951289589, epsM, t)
 	testDiff("r", hh, 6457402.3484473705, epsM, t)
 

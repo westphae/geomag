@@ -130,14 +130,19 @@ func init() {
 func main() {
 	flag.Parse()
 
-	if cofFile!="" {
-		if err = wmm.LoadWMMCOF(cofFile); err != nil {
+	var model *wmm.Model
+	if cofFile != "" {
+		if model, err = wmm.LoadModel(cofFile); err != nil {
 			fmt.Println(err)
 			return
 		}
+	} else {
+		model = wmm.Default()
 	}
-	fmt.Printf("COF File: %v, Epoch: %v, Valid Date: %d/%d/%d\n", wmm.COFName, wmm.Epoch,
-		wmm.ValidDate.Month(), wmm.ValidDate.Day(), wmm.ValidDate.Year())
+	validDate := model.ValidDate()
+	fmt.Printf("COF File: %v, Epoch: %v, Valid Date: %d/%d/%d\n",
+		model.COFName(), model.Epoch(),
+		validDate.Month(), validDate.Day(), validDate.Year())
 
 	if flag.NArg() == 0 {
 		userInput()
@@ -178,10 +183,7 @@ func main() {
 			fmt.Printf("Error making location: %s\n", err)
 		}
 	}
-	mf, err := wmm.CalculateWMMMagneticField(
-		loc,
-		wmm.DecimalYear(dYear).ToTime(),
-		)
+	mf, err := model.MagneticField(loc, wmm.DecimalYear(dYear).ToTime())
 
 	fmt.Println("Results For")
 	fmt.Println()

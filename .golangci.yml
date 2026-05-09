@@ -1,19 +1,20 @@
+version: "2"
+
 run:
   timeout: 3m
 
 linters:
   enable:
     - errcheck      # flag ignored errors (the exact pattern that hid PR #8's broken bindata at init)
-    - gosimple      # simplification suggestions
     - govet         # bundled go vet checks
     - ineffassign   # assignments whose value is never read
     - staticcheck   # broad static analysis (deprecated APIs, lock/unlock mismatches, etc.)
     - unused        # unused vars/funcs/types
 
-issues:
-  exclude-rules:
-    # Test fixtures intentionally discard errors when loading testdata files
-    # whose existence is part of the test setup.
-    - path: _test\.go
-      linters:
-        - errcheck
+  exclusions:
+    rules:
+      # Test fixtures intentionally discard errors when loading testdata files
+      # whose existence is part of the test setup.
+      - path: _test\.go
+        linters:
+          - errcheck

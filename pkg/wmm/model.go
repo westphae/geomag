@@ -48,7 +48,7 @@ func LoadModel(path string) (*Model, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }() // read-only file; close errors are not actionable
 	return ParseModel(f)
 }
 
