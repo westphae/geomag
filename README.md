@@ -5,6 +5,31 @@ The World Magnetic Model home is at https://www.ngdc.noaa.gov/geomag/WMM/DoDWMM.
 
 The coefficients for 2025-2029 can be downloaded at https://www.ncei.noaa.gov/products/world-magnetic-model
 
+## Install
+
+Requires Go 1.22 or newer. The current WMM coefficients (WMM2025) are embedded
+in the package, so there is no separate data file to download.
+
+To install the `wmm_point` command-line tool:
+
+```sh
+go install github.com/westphae/geomag/cmd/wmm_point@latest
+```
+
+The binary lands in `$(go env GOBIN)` (or `$(go env GOPATH)/bin` if `GOBIN` is
+unset) — make sure that directory is on your `PATH`. Pin to a specific release
+by replacing `@latest` with `@v1.2025.0`, etc.
+
+To use the library in your own Go project:
+
+```sh
+go get github.com/westphae/geomag@latest
+```
+
+then `import "github.com/westphae/geomag/pkg/wmm"` and/or
+`"github.com/westphae/geomag/pkg/egm96"`. See the per-package examples
+below.
+
 ## Commands
 geomag provides two command line programs, modeled after the command line programs in the official NOAA software.
 

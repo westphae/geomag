@@ -19,13 +19,30 @@ the geoid height at any location can be interpolated.
 This package calculates the geoid height at any location via interpolation of the NGA grid.
 Currently, a bilinear interpolation is used.
 
-## Usage
-The most common usage will be to create a location corresponding to
-a GPS-derived latitude, longitude, and height-above-ellipsoid, and then
-calculate the height above MSL:
+## Install
 
-	loc := NewLocationGeodetic(-12.25, 82.75, 10500*Ft)
-	h, err := loc.HeightAboveMSL()
+```sh
+go get github.com/westphae/geomag@latest
+```
+
+Requires Go 1.22 or newer. The 15'x15' NGA grid is embedded in the package —
+no separate data file to download. See the top-level
+[README](../../README.md) for the full install story.
+
+## Usage
+The most common usage is to create a location corresponding to a GPS-derived
+latitude, longitude, and height-above-ellipsoid, and then calculate the
+height above MSL:
+
+```go
+import "github.com/westphae/geomag/pkg/egm96"
+
+loc := egm96.NewLocationGeodetic(-12.25, 82.75, 1000) // lat, lng (deg), height (m above ellipsoid)
+h, err := loc.HeightAboveMSL()
+```
+
+Negative longitudes (the GPS/WGS84 `[-180, 180]` convention) are accepted —
+the constructor wraps to `[0, 360)` internally.
 
 ## Testing and Validation
 The heights produced by this program have been validated against online calculator at

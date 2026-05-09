@@ -14,13 +14,41 @@ its rates of change DX, DY, and DZ, and various derived components
 such as the total field F, the total horizontal field H,
 the Declination D, the Inclination I, and the Grid Variation (Grivation) GV.
 
-## Usage
-The most commonly used output would be the Declination D, which is the
-difference between Magnetic North and True North.
+## Install
 
-	t := time.Date(2019, 8, 1, 12, 0, 0, 0, time.UTC)
-	loc := NewLocationGeodetic(-12.25, 82.75, 10500*Ft)
-	field, err := CalculateWMMMagneticField(loc, t) 
+```sh
+go get github.com/westphae/geomag@latest
+```
+
+Requires Go 1.22 or newer. The current WMM coefficients (WMM2025) are
+embedded in the package — no separate data file to download. See the
+top-level [README](../../README.md) for the full install story including
+the `wmm_point` CLI.
+
+## Usage
+The most commonly used output is the Declination D, the difference between
+Magnetic North and True North.
+
+```go
+import (
+    "time"
+    "github.com/westphae/geomag/pkg/egm96"
+    "github.com/westphae/geomag/pkg/wmm"
+)
+
+t := time.Date(2025, 8, 1, 12, 0, 0, 0, time.UTC)
+loc := egm96.NewLocationGeodetic(-12.25, 82.75, 1000) // lat, lng (deg), height (m)
+field, err := wmm.Default().MagneticField(loc, t)
+// or, with an explicit model loaded from a custom .COF file:
+//   model, err := wmm.LoadModel("path/to/WMM.COF")
+//   field, err := model.MagneticField(loc, t)
+
+decl := field.D() // declination in degrees
+```
+
+The package-level `wmm.LoadWMMCOF` / `wmm.GetWMMCoefficients` /
+`wmm.CalculateWMMMagneticField` functions are retained as backward-compatible
+wrappers but new code should prefer `wmm.Default()` / `wmm.LoadModel`.
 
 ## Testing and Validation
 The outputs produced by this program have been validated against both the
