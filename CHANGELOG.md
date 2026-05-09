@@ -8,6 +8,42 @@ This project uses a year-based versioning scheme on top of [SemVer](https://semv
 WMM2025, `v1.2030.x` for the next NOAA release, …); **PATCH** increments
 within a model era for data reissues, code fixes, or improvements.
 
+## [Unreleased]
+
+### Fixed
+
+- **#1**: error model is no longer hardcoded as a package constant. New
+  `wmm.ErrorModel` struct lives on `*Model`, populated at parse time from
+  a per-COF lookup table (`defaultErrorModels`, currently keyed for
+  `WMM-2025` and `WMM-2020`). Loading WMM2020 testdata now correctly
+  reports `ErrF() = 148`; previously every COF returned the WMM2025
+  values the binary was compiled with. Models whose COF name isn't in
+  the table return zeros until `(*Model).SetErrorModel` is called.
+- **#3**: input longitudes are now normalized to `[0, 360°)` at
+  construction. `NewLocationGeodetic(39.86, -121.33, 0).HeightAboveMSL()`
+  works (the GPS-convention longitude is wrapped to the EGM96 grid file's
+  positive-east convention internally). The package was previously
+  internally inconsistent — `NearestEGM96GridPoint` normalized but
+  `HeightAboveMSL`/`NewLocationMSL` did not.
+- **#4**: race condition in `pkg/egm96`'s lazy grid load. The pattern
+  `if len(egm96Grid)==0 { loadEGM96Grid() }` against shared package state
+  could be entered by multiple goroutines simultaneously, racing on the
+  slice assignment in the loader. Now wrapped in `sync.Once`. Added
+  `TestConcurrentHeightAboveMSL` (64 goroutines through `HeightAboveMSL`)
+  which trips the race detector reliably without the fix.
+
+### Added
+
+- `wmm.ErrorModel`, `(*Model).ErrorModel()`, `(*Model).SetErrorModel(em)`,
+  `(MagneticField).ErrorModel()` — see #1.
+- GitHub Actions CI workflow at `.github/workflows/ci.yml`. Runs `go vet`,
+  `go build`, and `go test -race -count=1 ./...` against Go 1.22 and Go
+  stable on every push to master and every pull request. `golangci-lint`
+  runs as a separate job (config in `.golangci.yml`), enforcing
+  `errcheck`, `gosimple`, `govet`, `ineffassign`, `staticcheck`, and
+  `unused`. Closing the gap that allowed PR #8's corrupt bindata to ship
+  in the v1.0.x line.
+
 ## [v1.2025.0] — 2026-05-09
 
 First release on the new versioning scheme. Embeds WMM2025 (valid
