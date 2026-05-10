@@ -37,8 +37,11 @@ func TestEGM96GridInterpolationAgainstKnown(t *testing.T) {
 
 	for i := range lats {
 		h, _ := NewLocationGeodetic(lats[i], lngs[i], 0).HeightAboveMSL()
-		// 0.1 seems to be the error introduced by bi-linear interpolation rather than splines
-		testDiff("height", -h, hts[i], 0.1, t)
+		// Bicubic Catmull-Rom interpolation. Measured worst case across these
+		// nine UNAVCO reference points was 0.0108 m (vs 0.0557 m for the
+		// previous bilinear path); 0.02 m matches the historical 1.8× safety
+		// margin the bilinear test used.
+		testDiff("height", -h, hts[i], 0.02, t)
 	}
 }
 
@@ -124,6 +127,82 @@ func TestBoundaryCorners(t *testing.T) {
 					c.lat, c.lng, err, c.wantOK, h)
 			}
 		})
+	}
+}
+
+// TestPolarFallback exercises the bilinear fallback path inside
+// interpGeoidBicubic. At lat ≈ ±89.9° the bicubic stencil's ny±1..ny+2
+// reads would step off the latitude grid (which doesn't wrap), so the
+// implementation defers to bilinear within one cell of each pole.
+// We assert the call returns a finite, sub-100 m geoid height (EGM96
+// magnitudes never exceed ±107 m) and no error.
+func TestPolarFallback(t *testing.T) {
+	cases := []struct {
+		name     string
+		lat, lng float64
+	}{
+		{"near-north-pole", 89.9, 0},
+		{"near-north-pole-other-meridian", 89.9, 180},
+		{"near-south-pole", -89.9, 0},
+		{"near-south-pole-other-meridian", -89.9, 270},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			h, err := NewLocationGeodetic(c.lat, c.lng, 0).HeightAboveMSL()
+			if err != nil {
+				t.Fatalf("HeightAboveMSL(%v, %v): %v", c.lat, c.lng, err)
+			}
+			if math.IsNaN(h) || math.IsInf(h, 0) {
+				t.Fatalf("HeightAboveMSL(%v, %v) = %v, want finite", c.lat, c.lng, h)
+			}
+			// Sanity bound: -h is the geoid height; the EGM96 grid extremum
+			// is roughly +85.4 m / -106.9 m, so 200 m gives plenty of slack
+			// without being trivially passable.
+			if math.Abs(-h) > 200 {
+				t.Fatalf("HeightAboveMSL(%v, %v) = %v, magnitude looks unreasonable", c.lat, c.lng, h)
+			}
+		})
+	}
+}
+
+// TestAntimeridianContinuity exercises the longitude-wraparound logic in
+// interpGeoidBicubic. Indices 0 and egm96XN-1 represent the same meridian
+// (0° = 360°), so evaluating either side of the antimeridian (e.g.
+// lng = 179.9° vs lng = -179.9° vs lng = 359.9°) should return values
+// matching to within float-arithmetic noise. After NewLocationGeodetic
+// normalizes longitude to [0, 360°), all three forms become 179.9°,
+// 180.1°, 359.9° respectively — neighboring grid cells with smoothly
+// varying geoid heights, but the test specifically verifies that the
+// wraparound stencil at lng ≈ 359.9° doesn't introduce a discontinuity
+// vs evaluation away from the wrap.
+func TestAntimeridianContinuity(t *testing.T) {
+	// Three forms that exercise the modular wrap differently:
+	//   359.9° lands in cell (egm96XN-2, egm96XN-1), reading wrap(0) for
+	//   nx+2 — this is the one that crosses the boundary.
+	hWrap, err := NewLocationGeodetic(0, 359.9, 0).HeightAboveMSL()
+	if err != nil {
+		t.Fatalf("HeightAboveMSL(0, 359.9): %v", err)
+	}
+	// 0.1° is the symmetric position one tenth of a cell on the other
+	// side of the 0/360 seam.
+	hSeam, err := NewLocationGeodetic(0, 0.1, 0).HeightAboveMSL()
+	if err != nil {
+		t.Fatalf("HeightAboveMSL(0, 0.1): %v", err)
+	}
+	// Negative-form equivalent of 359.9° is -0.1°. Both should normalize
+	// to the same stored longitude and produce identical results.
+	hNeg, err := NewLocationGeodetic(0, -0.1, 0).HeightAboveMSL()
+	if err != nil {
+		t.Fatalf("HeightAboveMSL(0, -0.1): %v", err)
+	}
+	if math.Abs(hWrap-hNeg) > 1e-9 {
+		t.Errorf("antimeridian: 359.9° gave %v, -0.1° gave %v — should be identical after normalization", hWrap, hNeg)
+	}
+	// And 0.1° vs 359.9° should both be smooth across the seam: the
+	// geoid is C¹-continuous, so values 0.2° apart in longitude at the
+	// equator differ by far less than 1 m in any realistic gradient.
+	if math.Abs(hWrap-hSeam) > 1.0 {
+		t.Errorf("antimeridian: 359.9° gave %v, 0.1° gave %v — discontinuity larger than 1 m suggests wrap is broken", hWrap, hSeam)
 	}
 }
 

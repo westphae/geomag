@@ -12,7 +12,8 @@
 //
 // This package is based on the NGA-provided 15'x15' resolution grid encoding
 // the heights of the geopotential surface at each lat/long, and interpolates between grid
-// points using a bilinear interpolation.
+// points using a bicubic Catmull-Rom spline (with bilinear fallback within one
+// grid cell of the latitude poles, where the 4×4 stencil would step off the grid).
 package egm96
 
 import (
@@ -98,8 +99,10 @@ func NewLocationMSL(latitude, longitude, height float64) (loc Location, err erro
 	nLng := int((longitude-egm96X0)/egm96DX) // Grid x just below desired x
 	nLat := int((latitude-egm96Y0)/egm96DY)  // Grid y just below desired y
 
-	// Bilinear interpolation reads [nLng], [nLng+1], [nLat], [nLat+1], so the
-	// largest valid index is egm96XN-2 / egm96YN-2.
+	// Bounds checks guard the bilinear fallback path used at the latitude
+	// poles. The bicubic stencil reads a 4-cell window in latitude and is
+	// guarded internally; the latitude/longitude rejection here matches the
+	// historical bilinear contract so existing error messages still apply.
 	if nLng < 0 || nLng > egm96XN-2 {
 		return Location{}, fmt.Errorf("requested longitude %4.2f lies outside of EGM96 longitude range %4.1f to %4.1f",
 			longitude, egm96X0, egm96X1)
@@ -109,17 +112,14 @@ func NewLocationMSL(latitude, longitude, height float64) (loc Location, err erro
 			latitude, egm96Y0, egm96Y1)
 	}
 
-	x := (longitude-egm96X0)/egm96DX - float64(nLng)
-	y := (latitude-egm96Y0)/egm96DY - float64(nLat)
-	h00 := egm96Grid[nLat*egm96XN+nLng]
-	h10 := egm96Grid[nLat*egm96XN+nLng+1]
-	h01 := egm96Grid[(nLat+1)*egm96XN+nLng]
-	h11 := egm96Grid[(nLat+1)*egm96XN+nLng+1]
+	gx := (longitude - egm96X0) / egm96DX
+	gy := (latitude - egm96Y0) / egm96DY
+	geoid := interpGeoidBicubic(gx, gy)
 
 	return Location{
 		latitude:  latitude * Deg,
 		longitude: longitude * Deg,
-		height:    height + ((1-x)*(1-y)*h00 + x*(1-y)*h10 + (1-x)*y*h01 + x*y*h11),
+		height:    height + geoid,
 	}, nil
 }
 
@@ -163,8 +163,10 @@ func (l Location) HeightAboveMSL() (h float64, err error) {
 	nLng := int((lng-egm96X0)/egm96DX) // Grid x just below desired x
 	nLat := int((lat-egm96Y0)/egm96DY) // Grid y just below desired y
 
-	// Bilinear interpolation reads [nLng], [nLng+1], [nLat], [nLat+1], so the
-	// largest valid index is egm96XN-2 / egm96YN-2.
+	// Bounds checks guard the bilinear fallback path used at the latitude
+	// poles. The bicubic stencil reads a 4-cell window in latitude and is
+	// guarded internally; the latitude/longitude rejection here matches the
+	// historical bilinear contract so existing error messages still apply.
 	if nLng < 0 || nLng > egm96XN-2 {
 		return 0, fmt.Errorf("requested longitude %4.2f lies outside of EGM96 longitude range %4.1f to %4.1f",
 			lng, egm96X0, egm96X1)
@@ -174,17 +176,79 @@ func (l Location) HeightAboveMSL() (h float64, err error) {
 			lat, egm96Y0, egm96Y1)
 	}
 
-	x := (lng-egm96X0)/egm96DX - float64(nLng)
-	y := (lat-egm96Y0)/egm96DY - float64(nLat)
-	h00 := egm96Grid[nLat*egm96XN+nLng]
-	h10 := egm96Grid[nLat*egm96XN+nLng+1]
-	h01 := egm96Grid[(nLat+1)*egm96XN+nLng]
-	h11 := egm96Grid[(nLat+1)*egm96XN+nLng+1]
-
-	//TODO: implement spline interpolation to improve on bi-linear
-	h = l.height - ((1-x)*(1-y)*h00 + x*(1-y)*h10 + (1-x)*y*h01 + x*y*h11)
+	gx := (lng - egm96X0) / egm96DX
+	gy := (lat - egm96Y0) / egm96DY
+	h = l.height - interpGeoidBicubic(gx, gy)
 
 	return h, err
+}
+
+// catmullRom1D evaluates a 1D Catmull-Rom cubic at parameter t∈[0,1]
+// on four equally-spaced samples; p1 and p2 bracket the target. The
+// curve passes through every (i, p_i) sample and has C¹ continuity
+// across cell boundaries.
+func catmullRom1D(t, p0, p1, p2, p3 float64) float64 {
+	return p1 +
+		0.5*t*(p2-p0) +
+		t*t*(p0-2.5*p1+2*p2-0.5*p3) +
+		t*t*t*(-0.5*p0+1.5*p1-1.5*p2+0.5*p3)
+}
+
+// interpGeoidBilinear evaluates the EGM96 grid at fractional grid coordinates
+// (gx, gy) using the historical bilinear formula. Used directly by
+// interpGeoidBicubic as the polar fallback. Callers must have already
+// validated the (gx, gy) range to permit a 2×2 stencil read.
+func interpGeoidBilinear(gx, gy float64) float64 {
+	nx := int(math.Floor(gx))
+	ny := int(math.Floor(gy))
+	fx := gx - float64(nx)
+	fy := gy - float64(ny)
+	row := ny * egm96XN
+	h00 := egm96Grid[row+nx]
+	h10 := egm96Grid[row+nx+1]
+	h01 := egm96Grid[row+egm96XN+nx]
+	h11 := egm96Grid[row+egm96XN+nx+1]
+	return (1-fx)*(1-fy)*h00 + fx*(1-fy)*h10 + (1-fx)*fy*h01 + fx*fy*h11
+}
+
+// interpGeoidBicubic evaluates the EGM96 grid at fractional grid coordinates
+// (gx, gy) using a bicubic Catmull-Rom spline (4×4 stencil). Longitude wraps
+// modularly across the antimeridian: indices 0 and egm96XN-1 represent the
+// same meridian so the (nx + k) mod (egm96XN-1) form picks the correct
+// neighbour without a special case. Latitude does not wrap, so within one
+// grid cell of either pole (where the stencil would read off the grid) we
+// fall back to bilinear; the affected band is ~0.5° around each pole.
+//
+// Callers must have already validated (gx, gy) for the bilinear stencil
+// (HeightAboveMSL / NewLocationMSL guard this); interpGeoidBicubic adds
+// no further bounds errors.
+func interpGeoidBicubic(gx, gy float64) float64 {
+	nx := int(math.Floor(gx))
+	ny := int(math.Floor(gy))
+	fx := gx - float64(nx)
+	fy := gy - float64(ny)
+
+	// Polar fallback: bicubic stencil reads ny-1..ny+2; if either bound
+	// steps off the latitude grid (which doesn't wrap), fall back to bilinear.
+	if ny < 1 || ny > egm96YN-3 {
+		return interpGeoidBilinear(gx, gy)
+	}
+
+	mod := egm96XN - 1
+	wrap := func(i int) int { return ((i%mod)+mod)%mod }
+	i0, i1, i2, i3 := wrap(nx-1), wrap(nx), wrap(nx+1), wrap(nx+2)
+
+	var col [4]float64
+	for j := 0; j < 4; j++ {
+		row := (ny - 1 + j) * egm96XN
+		col[j] = catmullRom1D(fx,
+			egm96Grid[row+i0],
+			egm96Grid[row+i1],
+			egm96Grid[row+i2],
+			egm96Grid[row+i3],
+		)
+	}
+	return catmullRom1D(fy, col[0], col[1], col[2], col[3])
 }
 
 var (
