@@ -8,7 +8,7 @@ This project uses a year-based versioning scheme on top of [SemVer](https://semv
 WMM2025, `v1.2030.x` for the next NOAA release, …); **PATCH** increments
 within a model era for data reissues, code fixes, or improvements.
 
-## [Unreleased]
+## [v1.2025.5] — 2026-05-09
 
 Accuracy release for `pkg/egm96` — geoid interpolation switches from
 bilinear to a bicubic Catmull-Rom spline. Strict accuracy improvement
