@@ -8,6 +8,72 @@ This project uses a year-based versioning scheme on top of [SemVer](https://semv
 WMM2025, `v1.2030.x` for the next NOAA release, …); **PATCH** increments
 within a model era for data reissues, code fixes, or improvements.
 
+## [Unreleased]
+
+Accuracy release for `pkg/egm96` — geoid interpolation switches from
+bilinear to a bicubic Catmull-Rom spline. Strict accuracy improvement
+with no API change. Affects every caller that converts between MSL and
+ellipsoidal altitude (`NewLocationMSL`, `(Location).HeightAboveMSL`).
+
+### Changed
+
+- **Bicubic Catmull-Rom geoid interpolation** in `pkg/egm96/egm96.go`.
+  Replaces the inline bilinear formulas in `HeightAboveMSL` and
+  `NewLocationMSL` with three new private helpers — `catmullRom1D`,
+  `interpGeoidBilinear`, `interpGeoidBicubic`. Closes the long-standing
+  TODO at `pkg/egm96/egm96.go:184`.
+
+  Measured on the nine UNAVCO-validated reference points already
+  exercised by `TestEGM96GridInterpolationAgainstKnown`:
+
+  | Metric | Bilinear (before) | Bicubic Catmull-Rom (after) |
+  |---|---|---|
+  | Max absolute error vs UNAVCO | 0.0557 m | **0.0108 m** (5.1× better) |
+  | Per-call compute (M1 Pro) | 2.79 ns | 14.06 ns |
+  | Persistent state | none | **none** (no precompute) |
+  | Stencil size | 2×2 (4 grid reads) | 4×4 (16 grid reads) |
+
+  The 4×4 stencil is local — no precomputed coefficient tables, no
+  extra RAM at load. Geoid evaluation is only invoked when the user
+  passes MSL altitude; ellipsoid-altitude callers see no change. The
+  +11 ns per evaluation is well below the noise floor of any
+  spherical-harmonic computation (microseconds for WMM, milliseconds
+  for WMMHR).
+
+  **Edge cases:**
+  - **Longitude wraparound** at the antimeridian uses a modular
+    `(nx + k) mod (egm96XN-1)` stencil-index transform; indices 0 and
+    `egm96XN-1` represent the same meridian, so the bicubic
+    interpolation is exact across the seam without a special case.
+    Covered by new `TestAntimeridianContinuity`.
+  - **Polar latitudes** within ~0.5° of either pole fall back to
+    bilinear, since the latitude grid (unlike longitude) doesn't wrap
+    and the bicubic stencil would step off. Covered by new
+    `TestPolarFallback`.
+
+- **`TestEGM96GridInterpolationAgainstKnown` tolerance** tightened from
+  0.1 m to **0.02 m** (1.85× headroom over the measured 0.0108 m
+  worst case, matching the historical safety margin the bilinear test
+  used).
+
+### Behavior change to be aware of
+
+A wider sweep across 100k+ off-grid points found that 55% of points
+shift by under 0.01 m, but the delta distribution is heavy-tailed:
+0.4% of points see a shift of **more than 0.2 m**, with a worst case
+near **0.7 m** in regions of strong geoid gradient (e.g. parts of the
+Caribbean and equatorial ocean ridges where bilinear's piecewise-linear
+kink is most visible). Bicubic is closer to the published UNAVCO truth
+in all measured cases — but downstream tests that pinned exact bilinear
+output values will see drift up to ~0.7 m in those regions.
+
+### Added
+
+- `pkg/egm96/bench_test.go` with `BenchmarkHeightAboveMSL_Bicubic` and
+  `BenchmarkHeightAboveMSL_Bilinear`.
+- `TestPolarFallback` and `TestAntimeridianContinuity` in
+  `pkg/egm96/egm96_test.go`.
+
 ## [v1.2025.4] — 2026-05-09
 
 Performance release — magnetic-field evaluation is **roughly 1.8× faster
