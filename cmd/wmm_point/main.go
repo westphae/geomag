@@ -72,7 +72,6 @@ package main
 
 import (
 	"bufio"
-	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -93,6 +92,36 @@ const (
 		"Compass readings have VERY LARGE uncertainties in areas where where H is smaller than 1000 nT"
 )
 
+const usageHeader = `wmm_point — estimate Earth's main magnetic field at a single point.
+
+Computes declination (D), inclination (I), total/horizontal/vertical intensity
+(F, H, Z), the north/east/down components (X, Y, Z), grid variation (GV),
+their secular variation (dD, dI, dF, …), and the WMM uncertainty bounds.
+
+Usage:
+  wmm_point [flags] LATITUDE LONGITUDE ALTITUDE DATE
+  wmm_point [flags]                       # interactive prompts
+
+Positional arguments:
+  LATITUDE   Decimal degrees or DMS triple "D,M,S"; optional NSEW prefix.
+             Examples: 30.508, "30,30,30", N30.508, S30
+  LONGITUDE  Same syntax as LATITUDE; positive east, negative west.
+             Accepts both [-180,180] and [0,360] conventions.
+  ALTITUDE   Kilometers above mean sea level. Prefix "E" for height above
+             the WGS-84 ellipsoid (e.g. E20.1).
+  DATE       Decimal year (2025.5) or calendar date (MM DD YYYY or
+             MM/DD/YYYY). Must fall within the model's 5-year validity window.
+
+Flags:`
+
+const usageExamples = `
+Examples:
+  wmm_point N89 W121 E28 2025.0
+  wmm_point --hr N89 W121 E28 2025.0
+  wmm_point --cof_file=WMM2020.COF 30,30,30 -100.5 0.01 2020.5
+  wmm_point --spherical 0 0 0 2025.5
+`
+
 var prompt = map[string]string{
 	"latitude": "Please enter latitude North Latitude positive. " +
 		"For example: 30, 30, 30 (D,M,S) or 30.508 (Decimal Degrees) (both are north). ",
@@ -112,7 +141,6 @@ var (
 	altitude   float64
 	hae        bool
 	dYear      float64
-	ErrHelp    error
 	err        error
 	loc        egm96.Location
 	x, y, z    float64
@@ -128,7 +156,11 @@ func init() {
 
 	flag.BoolVar(&useHR, "hr", false, hrUsage)
 
-	ErrHelp = errors.New(usage)
+	flag.Usage = func() {
+		_, _ = fmt.Fprintln(os.Stderr, usageHeader)
+		flag.PrintDefaults()
+		_, _ = fmt.Fprint(os.Stderr, usageExamples)
+	}
 }
 
 func main() {

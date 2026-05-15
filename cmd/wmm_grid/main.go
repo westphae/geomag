@@ -55,6 +55,58 @@ import (
 
 const usage = `wmm_grid --lat=START,END,STEP --lng=START,END,STEP --alt=START,END,STEP --date=START,END,STEP [--element=D] [--errors] [--output=FILE] [--cof_file=PATH]`
 
+const usageHeader = `wmm_grid — compute a 4-D grid of WMM/WMMHR magnetic-field values.
+
+Sweeps the chosen magnetic-field element over (latitude × longitude ×
+altitude × time), emitting one whitespace-separated row per grid point:
+
+    <lat> <lng> <alt> <date> <value> [<error>]
+
+Each of the four axes takes a START,END,STEP triple. To collapse an axis
+(e.g. for a profile or time series), set START=END; STEP is then ignored.
+
+Usage:
+  wmm_grid --lat=S,E,T --lng=S,E,T --alt=S,E,T --date=S,E,T \
+           [--element=D] [--errors] [--output=FILE] \
+           [--hr | --cof_file=PATH]
+
+Axis units:
+  --lat   decimal degrees     (lat positive north)
+  --lng   decimal degrees     (lng positive east; [-180,180] or [0,360])
+  --alt   kilometers above the WGS-84 ellipsoid
+  --date  decimal years
+
+Output elements (--element):
+  D    declination,        degrees
+  I    inclination,        degrees
+  F    total intensity,    nT
+  H    horizontal,         nT
+  X    north component,    nT
+  Y    east component,     nT
+  Z    down component,     nT
+  dD, dI                   secular variation, degrees/year
+  dF, dH, dX, dY, dZ       secular variation, nT/year
+  GV   grid variation, degrees (not currently emitted by wmm_grid)
+
+--errors appends one extra column with the WMM uncertainty for that element
+(only D, I, F, H, X, Y, Z have published uncertainties).
+
+Flags:`
+
+const usageExamples = `
+Examples:
+  # Latitude sweep at sea level, single instant
+  wmm_grid --lat=-30,30,30 --lng=0,0,0 --alt=0,0,0 --date=2026,2026,0 --element=D
+
+  # Global longitude sweep × altitude × annual time series of total intensity
+  wmm_grid --lat=0,0,0 --lng=-180,180,10 --alt=0,100,10 --date=2025,2030,1 \
+           --element=F --errors
+
+  # WMMHR (degree-133) declination grid at fixed altitude/date, written to file
+  wmm_grid --hr --lat=-90,90,5 --lng=-180,180,5 --alt=0,0,0 --date=2025.5,2025.5,0 \
+           --element=D --output=decl_grid.txt
+`
+
 // elementFn extracts a scalar value (or scalar value + uncertainty) from a
 // computed MagneticField. value is what's emitted as the main column; err
 // is the WMM uncertainty for that element when --errors is set.
@@ -144,8 +196,9 @@ func main() {
 	cofFile := flag.String("cof_file", "", "alternate WMM coefficients file (default: embedded WMM2025)")
 	useHR := flag.Bool("hr", false, "use the high-resolution WMMHR model (degree 133); mutually exclusive with --cof_file")
 	flag.Usage = func() {
-		_, _ = fmt.Fprintln(os.Stderr, usage)
+		_, _ = fmt.Fprintln(os.Stderr, usageHeader)
 		flag.PrintDefaults()
+		_, _ = fmt.Fprint(os.Stderr, usageExamples)
 	}
 	flag.Parse()
 

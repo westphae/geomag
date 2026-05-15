@@ -59,6 +59,48 @@ import (
 
 const usage = "wmm_file [--hr | --cof_file=PATH] f [e|Errors|--Errors] INPUT_FILE OUTPUT_FILE"
 
+const usageHeader = `wmm_file — batch-process a coordinate file into magnetic-field values.
+
+Reads one geodetic record per line from INPUT_FILE and writes a space-
+separated row of computed field values (D, I, H, X, Y, Z, F and their
+secular variations) per record to OUTPUT_FILE. Argument layout matches
+NOAA's reference C distribution (` + "`" + `wmm_file f INPUT OUTPUT` + "`" + `).
+
+Usage:
+  wmm_file [flags] f [e|Errors|--Errors] INPUT_FILE OUTPUT_FILE
+
+Positional arguments:
+  f                    Required literal — NOAA-compat marker for "file mode".
+  e|Errors|--Errors    Optional. When present, appends seven uncertainty
+                       columns (errD, errI, errH, errX, errY, errZ, errF).
+  INPUT_FILE           Path to coordinate records, one per line.
+  OUTPUT_FILE          Destination for computed-field rows. Overwritten if
+                       it exists. A header row is written first.
+
+Input record format (whitespace-separated):
+  <date> <coord-system> <altitude> <lat> <lng>
+
+  <date>          Decimal year (e.g. 2025.5).
+  <coord-system>  "E" = height above WGS-84 ellipsoid, "M" = height above
+                  mean sea level.
+  <altitude>      Single-character unit prefix + signed decimal magnitude:
+                  K = kilometers, M = meters, F = feet. e.g. K100, M1042,
+                  F30000, K-1, K1.3.
+  <lat>, <lng>    Decimal degrees. lat positive north, lng positive east
+                  (longitudes in [-180,180] or [0,360] are both accepted).
+
+Blank lines and lines starting with "#" are skipped.
+
+Flags:`
+
+const usageExamples = `
+Examples:
+  wmm_file f sample_coords.txt out.txt
+  wmm_file f e sample_coords.txt out.txt          # include uncertainty cols
+  wmm_file --hr f sample_coords.txt out.txt       # WMMHR2025 (degree 133)
+  wmm_file --cof_file=WMM2020.COF f in.txt out.txt
+`
+
 var (
 	headerNoErrors = "Date Coord-System Altitude Latitude Longitude" +
 		" D_deg D_min I_deg I_min H_nT X_nT Y_nT Z_nT F_nT" +
@@ -70,8 +112,9 @@ func main() {
 	cofFile := flag.String("cof_file", "", "alternate WMM coefficients file (optional; default uses embedded WMM2025)")
 	useHR := flag.Bool("hr", false, "use the high-resolution WMMHR model (degree 133); mutually exclusive with --cof_file")
 	flag.Usage = func() {
-		_, _ = fmt.Fprintln(os.Stderr, usage)
+		_, _ = fmt.Fprintln(os.Stderr, usageHeader)
 		flag.PrintDefaults()
+		_, _ = fmt.Fprint(os.Stderr, usageExamples)
 	}
 	flag.Parse()
 	if *useHR && *cofFile != "" {

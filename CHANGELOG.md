@@ -8,6 +8,44 @@ This project uses a year-based versioning scheme on top of [SemVer](https://semv
 WMM2025, `v1.2030.x` for the next NOAA release, …); **PATCH** increments
 within a model era for data reissues, code fixes, or improvements.
 
+## [v1.2025.6] — 2026-05-15
+
+CLI-only release. Rewrites the `-h` help output for the three commands
+(`wmm_point`, `wmm_file`, `wmm_grid`) so users can discover positional
+arguments, units, supported elements, and concrete examples without
+reading the godoc or source. No library or behavior changes.
+
+### Changed
+
+- **`cmd/wmm_point`** now installs a `flag.Usage` function (previously
+  absent, so `-h` only listed flags). Output includes a one-paragraph
+  description, both invocation forms (positional and interactive), a
+  `Positional arguments` block describing LATITUDE / LONGITUDE /
+  ALTITUDE / DATE syntax (DMS triples vs decimal degrees, NSEW
+  prefixes, the `E` altitude prefix, decimal-year vs `MM DD YYYY`
+  date), and four copy-pasteable examples. Dropped the unused
+  `ErrHelp` sentinel and `errors` import.
+
+- **`cmd/wmm_file`** `-h` output expanded from the one-line synopsis +
+  flag list to a full description, `Positional arguments` block
+  (`f`, optional `e|Errors|--Errors`, `INPUT_FILE`, `OUTPUT_FILE`),
+  the input-record format (`<date> <coord-system> <altitude> <lat>
+  <lng>` with K/M/F altitude-prefix rules), and four examples.
+
+- **`cmd/wmm_grid`** `-h` output expanded with a description of the
+  4-D sweep, axis-collapse convention (set START=END), per-axis units,
+  a full enumeration of `--element` values with units (D/I in degrees;
+  F/H/X/Y/Z in nT; dD/dI in deg/yr; dF/dH/dX/dY/dZ in nT/yr; GV
+  documented as not currently emitted), the `--errors` constraint
+  (only main-field components have published uncertainties), and three
+  examples covering a profile sweep, a 4-D sweep with errors, and a
+  WMMHR file-output run.
+
+### Added
+
+- `.gitignore` rule for `assets/` (vendored upstream reference
+  materials kept locally for validation; not part of the module).
+
 ## [v1.2025.5] — 2026-05-09
 
 Accuracy release for `pkg/egm96` — geoid interpolation switches from

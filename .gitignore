@@ -13,3 +13,7 @@
 
 # Intellij
 .idea/
+
+# Vendored upstream reference materials kept locally for validation
+# (e.g. NOAA's WMMHR2025 Linux distribution under assets/wmm/).
+assets/
